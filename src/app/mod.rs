@@ -91,24 +91,33 @@ impl App {
 				self.cursor.clamp(self.scroll_position, self.screen_size());
 			}
 			
-			// TODO: for up/down, keep cursor at same relative position on screen
 			(Mode::Normal, Event::Key(key_event), None)
 			if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
 			   key_event.code == KeyCode::Char('d') => {
+				let head_offset = self.cursor.head - self.scroll_position;
+				let tail_offset = self.cursor.tail - self.scroll_position;
+				
 				self.scroll_position = min(
 					self.scroll_position + self.screen_size() / 2,
 					self.contents.len() - (5 * BYTES_PER_LINE)
 				);
-				self.cursor.clamp(self.scroll_position, self.screen_size());
+				
+				self.cursor.head = (self.scroll_position + head_offset).min(self.contents.len() - 1);
+				self.cursor.tail = (self.scroll_position + tail_offset).min(self.contents.len() - 1);
 			}
 			
 			(Mode::Normal, Event::Key(key_event), None)
 			if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
 			   key_event.code == KeyCode::Char('u') => {
+				let head_offset = self.cursor.head - self.scroll_position;
+				let tail_offset = self.cursor.tail - self.scroll_position;
+				
 				self.scroll_position = self.scroll_position.saturating_sub(
 					self.screen_size() / 2
 				);
-				self.cursor.clamp(self.scroll_position, self.screen_size());
+				
+				self.cursor.head = (self.scroll_position + head_offset).min(self.contents.len() - 1);
+				self.cursor.tail = (self.scroll_position + tail_offset).min(self.contents.len() - 1);
 			}
 			
 			(Mode::Normal, Event::Key(key_event), None)
