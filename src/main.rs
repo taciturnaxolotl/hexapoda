@@ -14,12 +14,13 @@ const BYTES_PER_CHUNK: usize = 4;
 const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 
 // TODO:
+// - refactor input system
+// - undo/redo
+// - x/X
 // - modes
 //   - select
 //   - insert
 //   - zz/zt/zb
-// - search
-// - jumplist
 // - modifications
 //   - insert/append
 //     - mode
@@ -29,6 +30,27 @@ const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 //     - mode
 //   - delete
 //   - change
+// - highlight cursor in character panel too (but lighter?)
+//   - edit too
+//     - modifier on existing keys like teehee? or jump to panel?
+// - search
+// - jumplist
+// - f/t
+//   - ascii?
+// - [/] to cycle view offset?
+// - J jump to offset
+
+// future directions
+// - switch between cursor size u8s/u16s/u32s/u64s?
+//   - +/-
+// - multi-cursor
+//   - s/C
+//   - split selection by u8/16/32/etc
+// - 'views' for bytes (i8/16/etc u8/16/etc 20.12/8.4/etc)
+//   - how to fit??! `-128` longer than `80`
+// - mark offsets?
+// - utf8?
+// - diffing
 
 fn main() {
 	let mut app = App::init();

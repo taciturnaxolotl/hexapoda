@@ -13,16 +13,24 @@ impl Widget for &App {
 		let (chunks, remainder) = bytes_to_render
 			.as_chunks::<BYTES_PER_LINE>();
 		
-		assert!(remainder.is_empty());
-		
 		let hex_lines = chunks
 			.iter()
 			.zip((self.scroll_position..).step_by(BYTES_PER_LINE))
 			.map(|(bytes, address)| self.render_line(address, bytes));
 		
-		let hex_area_text: Text = hex_lines.collect();
+		let remainder_address = bytes_end - remainder.len();
+		let remainder_line = if !remainder.is_empty() {
+			Some(self.render_partial_line(remainder_address, remainder))
+		} else {
+			None
+		};
+		
+		let hex_text: Text = hex_lines
+			.chain(remainder_line)
+			.collect();
+		
 		let hex_area = Rect::new(area.x, area.y, area.width, area.height - 1);
-		hex_area_text.render(hex_area, buf);
+		hex_text.render(hex_area, buf);
 		
 		let status_line_area = Rect::new(area.x, area.bottom() - 1, area.width, 1);
 		self.render_status_line().render(status_line_area, buf);
@@ -42,6 +50,15 @@ impl App {
 			.chain(character_panel::render_character_panel(bytes))
 			.collect()
 	}
+	
+	#[allow(mismatched_lifetime_syntaxes)]
+	fn render_partial_line(&self, address: usize, bytes: &[u8]) -> Line {
+		iter::once(address::render_address(address))
+			.chain(self.render_partial_chunks(address, bytes))
+			.chain(iter::once("  ".into()))
+			.chain(character_panel::render_character_panel(bytes))
+			.collect()
+	}
 }
 
 mod address {
@@ -57,7 +74,7 @@ mod address {
 
 mod hex {
 	use std::{borrow::Cow, mem};
-	use itertools::Itertools;
+	use itertools::{Itertools, repeat_n};
 	use ratatui::{style::{Color, Style, Stylize}, text::Span};
 	
 	use crate::{BYTES_PER_CHUNK, BYTES_PER_LINE, CHUNKS_PER_LINE, app::App, cardinality::HasCardinality, cursor::InCursor, empty_span::empty_span, custom_greys::CustomGreys};
@@ -70,7 +87,7 @@ mod hex {
 		) -> impl Iterator<Item=Span<'static>> {
 			let (chunks, remainder) = bytes.as_chunks::<BYTES_PER_CHUNK>();
 			
-			assert!(remainder.is_empty());
+			assert!(remainder.is_empty(), "BYTES_PER_LINE should be a multiple of BYTES_PER_CHUNK");
 			
 			#[allow(unstable_name_collisions)]
 			chunks
@@ -88,10 +105,69 @@ mod hex {
 				.flatten()
 		}
 		
+		pub fn render_partial_chunks(
+			&self,
+			address: usize,
+			bytes: &[u8]
+		) -> impl Iterator<Item=Span<'static>> {
+			let (chunks, remainder) = bytes.as_chunks::<BYTES_PER_CHUNK>();
+			
+			let remainder_address = address + chunks.len() * BYTES_PER_CHUNK;
+			let remainder_chunks: Option<Vec<_>> = if !remainder.is_empty() {
+				Some(self.render_partial_chunk(remainder_address, remainder).collect())
+			} else {
+				None
+			};
+			
+			let chunks_rendered = chunks.len() + remainder_chunks.iter().len();
+			let chunks_not_rendered = CHUNKS_PER_LINE - chunks_rendered;
+			let spaces_per_chunk = BYTES_PER_CHUNK - 1;
+			let bytes_not_rendered = BYTES_PER_LINE - bytes.len();
+			
+			let padding_width = 2 * bytes_not_rendered +
+				spaces_per_chunk * chunks_not_rendered;
+			
+			#[allow(unstable_name_collisions)]
+			chunks
+				.iter()
+				.copied()
+				.zip((address..).step_by(BYTES_PER_CHUNK))
+				.map(|(chunk, address)| self.render_chunk(address, &chunk).collect())
+				.chain(remainder_chunks)
+				.interleave(
+					(address..)
+						.step_by(BYTES_PER_CHUNK)
+						.take(CHUNKS_PER_LINE)
+						.skip(1)
+						.map(|address| vec![self.render_large_space_before(address)])
+				)
+				.flatten()
+				.chain(repeat_n(" ".into(), padding_width))
+		}
+		
 		fn render_chunk(
 			&self,
 			address: usize,
 			bytes: &[u8; BYTES_PER_CHUNK]
+		) -> impl Iterator<Item=Span<'static>> {
+			#[allow(unstable_name_collisions)]
+			bytes
+				.iter()
+				.copied()
+				.zip(address..)
+				.map(|(byte, address)| self.render_byte_at(address, byte))
+				.interleave(
+					(address..)
+						.take(BYTES_PER_CHUNK)
+						.skip(1)
+						.map(|address| self.render_space_before(address))
+				)
+		}
+		
+		fn render_partial_chunk(
+			&self,
+			address: usize,
+			bytes: &[u8]
 		) -> impl Iterator<Item=Span<'static>> {
 			#[allow(unstable_name_collisions)]
 			bytes
@@ -201,10 +277,10 @@ mod character_panel {
 	use std::{borrow::Cow, mem};
 	use ratatui::{style::{Color, Style}, text::Span};
 	
-	use crate::{BYTES_PER_LINE, cardinality::HasCardinality, empty_span::empty_span};
+	use crate::{cardinality::HasCardinality, empty_span::empty_span};
 	
 	pub fn render_character_panel(
-		bytes: &[u8; BYTES_PER_LINE]
+		bytes: &[u8]
 	) -> impl Iterator<Item=Span<'static>> {
 		bytes
 			.iter()
