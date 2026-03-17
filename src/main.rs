@@ -6,6 +6,7 @@ use app::App;
 mod cardinality;
 mod empty_span;
 mod app;
+mod cursor;
 
 const BYTES_PER_LINE: usize = 0x10;
 const BYTES_PER_CHUNK: usize = 4;

@@ -19,7 +19,7 @@ impl Widget for &App {
 		let lines: Vec<_> = chunks
 			.iter()
 			.zip((self.scroll_position..).step_by(BYTES_PER_LINE))
-			.map(|(bytes, address)| render_line(address, bytes))
+			.map(|(bytes, address)| self.render_line(address, bytes))
 			.collect();
 		
 		let text = Text::from(lines);
@@ -28,15 +28,17 @@ impl Widget for &App {
 	}
 }
 
-#[allow(mismatched_lifetime_syntaxes)]
-fn render_line(address: usize, bytes: &[u8; BYTES_PER_LINE]) -> Line {
-	let spans: Vec<Span<'_>> = iter::once(address::render_address(address))
-		.chain(hex::render_chunks(bytes))
-		.chain(iter::once("  ".into()))
-		.chain(character_panel::render_character_panel(bytes))
-		.collect();
+impl App {
+	#[allow(mismatched_lifetime_syntaxes)]
+	fn render_line(&self, address: usize, bytes: &[u8; BYTES_PER_LINE]) -> Line {
+		let spans: Vec<Span<'_>> = iter::once(address::render_address(address))
+			.chain(self.render_chunks(address, bytes))
+			.chain(iter::once("  ".into()))
+			.chain(character_panel::render_character_panel(bytes))
+			.collect();
 	
-	Line::from(spans)
+		Line::from(spans)
+	}
 }
 
 mod address {
@@ -53,38 +55,60 @@ mod address {
 mod hex {
 	use std::{borrow::Cow, mem};
 	use itertools::Itertools;
-	use ratatui::{style::{Color, Style}, text::Span};
+	use ratatui::{style::{Color, Style, Stylize}, text::Span};
 	
-	use crate::{BYTES_PER_LINE, BYTES_PER_CHUNK, cardinality::HasCardinality, empty_span::empty_span};
+	use crate::{BYTES_PER_LINE, BYTES_PER_CHUNK, app::App, cardinality::HasCardinality, empty_span::empty_span, cursor::InCursor};
 	
-	pub fn render_chunks(bytes: &[u8; BYTES_PER_LINE]) -> impl IntoIterator<Item=Span<'static>> {
-		let (chunks, remainder) = bytes.as_chunks::<BYTES_PER_CHUNK>();
+	impl App {
+		pub fn render_chunks(
+			&self,
+			address: usize,
+			bytes: &[u8; BYTES_PER_LINE]
+		) -> impl IntoIterator<Item=Span<'static>> {
+			let (chunks, remainder) = bytes.as_chunks::<BYTES_PER_CHUNK>();
+			
+			assert!(remainder.is_empty());
+			
+			#[allow(unstable_name_collisions)]
+			chunks
+				.iter()
+				.copied()
+				.zip((address..).step_by(BYTES_PER_CHUNK))
+				.map(|(chunk, address)| self.render_chunk(address, chunk))
+				.intersperse(vec!["  ".into()])
+				.flatten()
+		}
 		
-		assert!(remainder.is_empty());
+		fn render_chunk(
+			&self,
+			address: usize,
+			bytes: [u8; BYTES_PER_CHUNK]
+		) -> Vec<Span<'static>> {
+			#[allow(unstable_name_collisions)]
+			bytes
+				.iter()
+				.copied()
+				.zip(address..)
+				.map(|(byte, address)| self.render_byte_at(address, byte))
+				.intersperse(" ".into()) // TODO: highlight if selected
+				.collect()
+		}
 		
-		#[allow(unstable_name_collisions)]
-		chunks
-			.iter()
-			.copied()
-			.map(render_chunk)
-			.intersperse(vec!["  ".into()])
-			.flatten()
-	}
-	
-	fn render_chunk(bytes: [u8; BYTES_PER_CHUNK]) -> Vec<Span<'static>> {
-		#[allow(unstable_name_collisions)]
-		bytes
-			.iter()
-			.copied()
-			.map(render_byte)
-			.intersperse(" ".into())
-			.collect()
-	}
-	
-	fn render_byte(byte: u8) -> Span<'static> {
-		const SPAN_FOR_BYTE: [Span; u8::CARDINALITY] = create_byte_lookup_table();
-		
-		SPAN_FOR_BYTE[byte as usize].clone()
+		fn render_byte_at(
+			&self,
+			address: usize,
+			byte: u8
+		) -> Span<'static> {
+			const SPAN_FOR_BYTE: [Span; u8::CARDINALITY] = create_byte_lookup_table();
+			
+			let span = SPAN_FOR_BYTE[byte as usize].clone();
+			
+			match self.cursor.contains(address) {
+				Some(InCursor::Head) => span.bg(Color::Gray),
+				Some(InCursor::Rest) => span.bg(Color::Indexed(242)),
+				None => span,
+			}
+		}
 	}
 	
 	const fn create_byte_lookup_table() -> [Span<'static>; u8::CARDINALITY] {
@@ -144,7 +168,9 @@ mod character_panel {
 	
 	use crate::{BYTES_PER_LINE, cardinality::HasCardinality, empty_span::empty_span};
 	
-	pub fn render_character_panel(bytes: &[u8; BYTES_PER_LINE]) -> impl IntoIterator<Item=Span<'static>> {
+	pub fn render_character_panel(
+		bytes: &[u8; BYTES_PER_LINE]
+	) -> impl IntoIterator<Item=Span<'static>> {
 		bytes
 			.iter()
 			.copied()
