@@ -5,11 +5,13 @@ use app::App;
 
 mod cardinality;
 mod empty_span;
+mod select_grey;
 mod app;
 mod cursor;
 
 const BYTES_PER_LINE: usize = 0x10;
 const BYTES_PER_CHUNK: usize = 4;
+const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 
 fn main() {
 	let mut app = App::init();

@@ -53,11 +53,11 @@ mod address {
 }
 
 mod hex {
-	use std::{borrow::Cow, mem};
+	use std::{borrow::Cow, iter, mem};
 	use itertools::Itertools;
 	use ratatui::{style::{Color, Style, Stylize}, text::Span};
 	
-	use crate::{BYTES_PER_LINE, BYTES_PER_CHUNK, app::App, cardinality::HasCardinality, empty_span::empty_span, cursor::InCursor};
+	use crate::{BYTES_PER_CHUNK, BYTES_PER_LINE, CHUNKS_PER_LINE, app::App, cardinality::HasCardinality, cursor::InCursor, empty_span::empty_span, select_grey::SelectGrey};
 	
 	impl App {
 		pub fn render_chunks(
@@ -75,7 +75,13 @@ mod hex {
 				.copied()
 				.zip((address..).step_by(BYTES_PER_CHUNK))
 				.map(|(chunk, address)| self.render_chunk(address, chunk))
-				.intersperse(vec!["  ".into()])
+				.interleave(
+					(address..)
+						.step_by(BYTES_PER_CHUNK)
+						.take(CHUNKS_PER_LINE)
+						.skip(1)
+						.map(|address| vec![self.render_large_space_before(address)])
+				)
 				.flatten()
 		}
 		
@@ -90,7 +96,12 @@ mod hex {
 				.copied()
 				.zip(address..)
 				.map(|(byte, address)| self.render_byte_at(address, byte))
-				.intersperse(" ".into()) // TODO: highlight if selected
+				.interleave(
+					(address..)
+						.take(BYTES_PER_CHUNK)
+						.skip(1)
+						.map(|address| self.render_space_before(address))
+				)
 				.collect()
 		}
 		
@@ -105,8 +116,30 @@ mod hex {
 			
 			match self.cursor.contains(address) {
 				Some(InCursor::Head) => span.bg(Color::Gray),
-				Some(InCursor::Rest) => span.bg(Color::Indexed(242)),
+				Some(InCursor::Rest) => span.bg(Color::select_grey()),
 				None => span,
+			}
+		}
+		
+		fn render_large_space_before(&self, address: usize) -> Span<'static> {
+			if self.cursor.contains_space_before(address) {
+				Span {
+					style: Style::new().bg(Color::select_grey()),
+					content: "  ".into()
+				}
+			} else {
+				"  ".into()
+			}
+		}
+		
+		fn render_space_before(&self, address: usize) -> Span<'static> {
+			if self.cursor.contains_space_before(address) {
+				Span {
+					style: Style::new().bg(Color::select_grey()),
+					content: " ".into()
+				}
+			} else {
+				" ".into()
 			}
 		}
 	}

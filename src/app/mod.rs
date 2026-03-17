@@ -98,13 +98,13 @@ impl App {
 				}
 			}
 			Event::Key(key_event) if key_event.code == KeyCode::Char('w') => {
-				self.cursor.to_next_word(self.contents.len() - 1);
+				self.cursor.move_to_next_word(self.contents.len() - 1);
 			}
 			Event::Key(key_event) if key_event.code == KeyCode::Char('e') => {
-				self.cursor.to_next_end(self.contents.len() - 1);
+				self.cursor.move_to_next_end(self.contents.len() - 1);
 			}
 			Event::Key(key_event) if key_event.code == KeyCode::Char('b') => {
-				self.cursor.to_previous_beginning();
+				self.cursor.move_to_previous_beginning();
 			}
 			Event::Key(key_event) if key_event.code == KeyCode::Char(';') => {
 				self.cursor.collapse();
