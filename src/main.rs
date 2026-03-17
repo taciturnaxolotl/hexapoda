@@ -36,4 +36,8 @@ fn main() {
 	}
 	
 	ratatui::restore();
+	
+	for log in app.logs {
+		println!("{log}");
+	}
 }

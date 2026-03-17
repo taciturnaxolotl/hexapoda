@@ -11,7 +11,20 @@ pub struct App {
 	pub window_rows: usize,
 	pub scroll_position: usize,
 	pub cursor: Cursor,
-	pub should_quit: bool
+	pub should_quit: bool,
+	pub mode: Mode,
+	pub partial_shortcut: Option<PartialShortcut>,
+	pub logs: Vec<String>,
+}
+
+#[derive(Debug)]
+pub enum Mode {
+	Normal, Visual, Insert
+}
+
+#[derive(Debug)]
+pub enum PartialShortcut {
+	Goto, Zview
 }
 
 impl App {
@@ -36,7 +49,10 @@ impl App {
 			window_rows: window_size().unwrap().rows as usize,
 			scroll_position: 0,
 			cursor: Cursor::default(),
-			should_quit: false
+			should_quit: false,
+			mode: Mode::Normal,
+			partial_shortcut: None,
+			logs: Vec::new(),
 		}
 	}
 	
@@ -48,77 +64,109 @@ impl App {
 	#[allow(clippy::too_many_lines)]
 	pub fn handle_events(&mut self) {
 		#[allow(clippy::collapsible_match)]
-		match event::read().unwrap() {
-			Event::Resize(_, height) => {
+		match (&self.mode, event::read().unwrap(), &self.partial_shortcut) {
+			(Mode::Normal, Event::Resize(_, height), _) => {
 				self.window_rows = height as usize;
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('q') => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			if key_event.code == KeyCode::Char('q') => {
 				self.should_quit = true;
 			}
-			Event::Key(key_event) if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
-			                         key_event.code == KeyCode::Char('e') => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
+			   key_event.code == KeyCode::Char('e') => {
 				self.scroll_position = min(
 					self.scroll_position + BYTES_PER_LINE,
 					self.contents.len() - (5 * BYTES_PER_LINE)
 				);
 				self.cursor.clamp(self.scroll_position, self.screen_size());
 			}
-			Event::Key(key_event) if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
-			                         key_event.code == KeyCode::Char('y') => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
+			   key_event.code == KeyCode::Char('y') => {
 				self.scroll_position = self.scroll_position.saturating_sub(BYTES_PER_LINE);
 				self.cursor.clamp(self.scroll_position, self.screen_size());
 			}
-			Event::Key(key_event) if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
-			                         key_event.code == KeyCode::Char('d') => {
+			
+			// TODO: for up/down, keep cursor at same relative position on screen
+			(Mode::Normal, Event::Key(key_event), None)
+			if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
+			   key_event.code == KeyCode::Char('d') => {
 				self.scroll_position = min(
 					self.scroll_position + self.screen_size() / 2,
 					self.contents.len() - (5 * BYTES_PER_LINE)
 				);
 				self.cursor.clamp(self.scroll_position, self.screen_size());
 			}
-			// TODO: for up/down, keep cursor at same relative position on screen
-			Event::Key(key_event) if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
-			                         key_event.code == KeyCode::Char('u') => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
+			   key_event.code == KeyCode::Char('u') => {
 				self.scroll_position = self.scroll_position.saturating_sub(
 					self.screen_size() / 2
 				);
 				self.cursor.clamp(self.scroll_position, self.screen_size());
 			}
-			Event::Key(key_event) if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
-			                         key_event.code == KeyCode::Char('f') => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
+			   key_event.code == KeyCode::Char('f') => {
 				self.scroll_position = min(
 					self.scroll_position + self.screen_size(),
 					self.contents.len() - (5 * BYTES_PER_LINE)
 				);
 				self.cursor.clamp(self.scroll_position, self.screen_size());
 			}
-			Event::Key(key_event) if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
-			                         key_event.code == KeyCode::Char('b') => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
+			   key_event.code == KeyCode::Char('b') => {
 				self.scroll_position = self.scroll_position.saturating_sub(
 					self.screen_size()
 				);
 				self.cursor.clamp(self.scroll_position, self.screen_size());
 			}
-			// Event::Key(key_event) if key_event.code == KeyCode::Char('g') => {
-			// }
-			Event::Key(key_event) if key_event.code == KeyCode::Char('G') => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			   if key_event.code == KeyCode::Char('g') => {
+				self.partial_shortcut = Some(PartialShortcut::Goto);
+			}
+			
+			(Mode::Normal, Event::Key(key_event), Some(PartialShortcut::Goto))
+			   if key_event.code == KeyCode::Char('g') => {
+				self.partial_shortcut = None;
+				self.cursor.head %= BYTES_PER_LINE;
+				self.cursor.collapse();
+				self.clamp_screen_to_cursor();
+			}
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			   if key_event.code == KeyCode::Char('G') => {
 				self.cursor.head = previous_multiple_of(BYTES_PER_LINE, self.contents.len()) +
 					(self.cursor.head % BYTES_PER_LINE);
 				
 				self.cursor.collapse();
 				self.clamp_screen_to_cursor();
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('i') ||
-			                         key_event.code == KeyCode::Up => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			   if key_event.code == KeyCode::Char('i') ||
+			   key_event.code == KeyCode::Up => {
+				self.partial_shortcut = None;
 				if self.cursor.head >= BYTES_PER_LINE {
 					self.cursor.head -= BYTES_PER_LINE;
 					self.cursor.collapse();
-					
+				
 					self.clamp_screen_to_cursor();
 				}
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('j') ||
-			                         key_event.code == KeyCode::Left => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			   if key_event.code == KeyCode::Char('j') ||
+			   key_event.code == KeyCode::Left => {
 				if self.cursor.head >= 1 {
 					self.cursor.head -= 1;
 					self.cursor.collapse();
@@ -126,8 +174,18 @@ impl App {
 					self.clamp_screen_to_cursor();
 				}
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('k') ||
-			                         key_event.code == KeyCode::Down => {
+			
+			(Mode::Normal, Event::Key(key_event), Some(PartialShortcut::Goto))
+			   if key_event.code == KeyCode::Char('j') ||
+			   key_event.code == KeyCode::Left => {
+				self.partial_shortcut = None;
+				self.cursor.head -= self.cursor.head % BYTES_PER_LINE;
+				self.cursor.collapse();
+			}
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			   if key_event.code == KeyCode::Char('k') ||
+			   key_event.code == KeyCode::Down => {
 				if self.contents.len() - 1 - self.cursor.head >= BYTES_PER_LINE {
 					self.cursor.head += BYTES_PER_LINE;
 					self.cursor.collapse();
@@ -135,8 +193,10 @@ impl App {
 					self.clamp_screen_to_cursor();
 				}
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('l') ||
-			                         key_event.code == KeyCode::Right => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			   if key_event.code == KeyCode::Char('l') ||
+			   key_event.code == KeyCode::Right => {
 				if self.contents.len() - 1 - self.cursor.head >= 1 {
 					self.cursor.head += 1;
 					self.cursor.collapse();
@@ -144,49 +204,43 @@ impl App {
 					self.clamp_screen_to_cursor();
 				}
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('I') => {
-				if self.cursor.head >= BYTES_PER_LINE {
-					self.cursor.head -= BYTES_PER_LINE;
-					
-					self.clamp_screen_to_cursor();
-				}
+			
+			(Mode::Normal, Event::Key(key_event), Some(PartialShortcut::Goto))
+			   if key_event.code == KeyCode::Char('l') ||
+			   key_event.code == KeyCode::Right => {
+				self.partial_shortcut = None;
+				self.cursor.head += BYTES_PER_LINE - 1 - (self.cursor.head % BYTES_PER_LINE);
+				self.cursor.collapse();
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('J') => {
-				if self.cursor.head >= 1 {
-					self.cursor.head -= 1;
-					
-					self.clamp_screen_to_cursor();
-				}
-			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('K') => {
-				if self.contents.len() - 1 - self.cursor.head >= BYTES_PER_LINE {
-					self.cursor.head += BYTES_PER_LINE;
-					
-					self.clamp_screen_to_cursor();
-				}
-			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('L') => {
-				if self.contents.len() - 1 - self.cursor.head >= 1 {
-					self.cursor.head += 1;
-					
-					self.clamp_screen_to_cursor();
-				}
-			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('w') => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			   if key_event.code == KeyCode::Char('w') => {
 				self.cursor.move_to_next_word(self.contents.len() - 1);
 				self.clamp_screen_to_cursor();
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('e') => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			   if key_event.code == KeyCode::Char('e') => {
 				self.cursor.move_to_next_end(self.contents.len() - 1);
 				self.clamp_screen_to_cursor();
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('b') => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			   if key_event.code == KeyCode::Char('b') => {
 				self.cursor.move_to_previous_beginning();
 				self.clamp_screen_to_cursor();
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char(';') => {
+			
+			(Mode::Normal, Event::Key(key_event), None)
+			   if key_event.code == KeyCode::Char(';') => {
 				self.cursor.collapse();
 			}
+			
+			(Mode::Normal, Event::Key(_), Some(_)) => {
+				self.logs.push("key press!".to_string());
+				self.partial_shortcut = None;
+			}
+			
 			_ => {}
 		}
 	}
