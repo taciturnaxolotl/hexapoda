@@ -13,6 +13,16 @@ const BYTES_PER_LINE: usize = 0x10;
 const BYTES_PER_CHUNK: usize = 4;
 const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 
+// TODO:
+// - modes
+//   - g/v/z
+// - modifications
+//   - insert/append
+//   - replace
+//   - replace-and-keep-going
+//   - delete
+//   - change
+
 fn main() {
 	let mut app = App::init();
 	let mut terminal = ratatui::init();

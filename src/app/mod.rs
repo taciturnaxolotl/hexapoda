@@ -40,6 +40,11 @@ impl App {
 		}
 	}
 	
+	// in bytes
+	const fn screen_size(&self) -> usize {
+		self.window_rows * BYTES_PER_LINE
+	}
+	
 	#[allow(clippy::too_many_lines)]
 	pub fn handle_events(&mut self) {
 		#[allow(clippy::collapsible_match)]
@@ -56,44 +61,55 @@ impl App {
 					self.scroll_position + BYTES_PER_LINE,
 					self.contents.len() - (5 * BYTES_PER_LINE)
 				);
-				self.cursor.clamp(self.scroll_position, self.window_rows);
+				self.cursor.clamp(self.scroll_position, self.screen_size());
 			}
 			Event::Key(key_event) if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
 			                         key_event.code == KeyCode::Char('y') => {
 				self.scroll_position = self.scroll_position.saturating_sub(BYTES_PER_LINE);
-				self.cursor.clamp(self.scroll_position, self.window_rows);
+				self.cursor.clamp(self.scroll_position, self.screen_size());
 			}
 			Event::Key(key_event) if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
 			                         key_event.code == KeyCode::Char('d') => {
 				self.scroll_position = min(
-					self.scroll_position + ((self.window_rows / 2) * BYTES_PER_LINE),
+					self.scroll_position + self.screen_size() / 2,
 					self.contents.len() - (5 * BYTES_PER_LINE)
 				);
-				self.cursor.clamp(self.scroll_position, self.window_rows);
+				self.cursor.clamp(self.scroll_position, self.screen_size());
 			}
+			// TODO: for up/down, keep cursor at same relative position on screen
 			Event::Key(key_event) if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
 			                         key_event.code == KeyCode::Char('u') => {
 				self.scroll_position = self.scroll_position.saturating_sub(
-					(self.window_rows / 2) * BYTES_PER_LINE
+					self.screen_size() / 2
 				);
-				self.cursor.clamp(self.scroll_position, self.window_rows);
+				self.cursor.clamp(self.scroll_position, self.screen_size());
 			}
 			Event::Key(key_event) if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
 			                         key_event.code == KeyCode::Char('f') => {
 				self.scroll_position = min(
-					self.scroll_position + (self.window_rows * BYTES_PER_LINE),
+					self.scroll_position + self.screen_size(),
 					self.contents.len() - (5 * BYTES_PER_LINE)
 				);
-				self.cursor.clamp(self.scroll_position, self.window_rows);
+				self.cursor.clamp(self.scroll_position, self.screen_size());
 			}
 			Event::Key(key_event) if key_event.modifiers.contains(KeyModifiers::CONTROL) &&
 			                         key_event.code == KeyCode::Char('b') => {
 				self.scroll_position = self.scroll_position.saturating_sub(
-					self.window_rows * BYTES_PER_LINE
+					self.screen_size()
 				);
-				self.cursor.clamp(self.scroll_position, self.window_rows);
+				self.cursor.clamp(self.scroll_position, self.screen_size());
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('i') => {
+			// Event::Key(key_event) if key_event.code == KeyCode::Char('g') => {
+			// }
+			Event::Key(key_event) if key_event.code == KeyCode::Char('G') => {
+				self.cursor.head = previous_multiple_of(BYTES_PER_LINE, self.contents.len()) +
+					(self.cursor.head % BYTES_PER_LINE);
+				
+				self.cursor.collapse();
+				self.clamp_screen_to_cursor();
+			}
+			Event::Key(key_event) if key_event.code == KeyCode::Char('i') ||
+			                         key_event.code == KeyCode::Up => {
 				if self.cursor.head >= BYTES_PER_LINE {
 					self.cursor.head -= BYTES_PER_LINE;
 					self.cursor.collapse();
@@ -101,7 +117,8 @@ impl App {
 					self.clamp_screen_to_cursor();
 				}
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('j') => {
+			Event::Key(key_event) if key_event.code == KeyCode::Char('j') ||
+			                         key_event.code == KeyCode::Left => {
 				if self.cursor.head >= 1 {
 					self.cursor.head -= 1;
 					self.cursor.collapse();
@@ -109,7 +126,8 @@ impl App {
 					self.clamp_screen_to_cursor();
 				}
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('k') => {
+			Event::Key(key_event) if key_event.code == KeyCode::Char('k') ||
+			                         key_event.code == KeyCode::Down => {
 				if self.contents.len() - 1 - self.cursor.head >= BYTES_PER_LINE {
 					self.cursor.head += BYTES_PER_LINE;
 					self.cursor.collapse();
@@ -117,7 +135,8 @@ impl App {
 					self.clamp_screen_to_cursor();
 				}
 			}
-			Event::Key(key_event) if key_event.code == KeyCode::Char('l') => {
+			Event::Key(key_event) if key_event.code == KeyCode::Char('l') ||
+			                         key_event.code == KeyCode::Right => {
 				if self.contents.len() - 1 - self.cursor.head >= 1 {
 					self.cursor.head += 1;
 					self.cursor.collapse();
@@ -174,9 +193,18 @@ impl App {
 	
 	const fn clamp_screen_to_cursor(&mut self) {
 		if self.cursor.head < self.scroll_position {
-			self.scroll_position -= BYTES_PER_LINE;
-		} else if self.cursor.head > self.scroll_position + (self.window_rows * BYTES_PER_LINE) - 1 {
-			self.scroll_position += BYTES_PER_LINE;
+			self.scroll_position -= (self.scroll_position - self.cursor.head).next_multiple_of(BYTES_PER_LINE);
+		} else if self.cursor.head > self.scroll_position + self.screen_size() - 1 {
+			let screen_edge_offset_to_cursor = self.cursor.head - (self.scroll_position + self.screen_size() - 1);
+			self.scroll_position += screen_edge_offset_to_cursor.next_multiple_of(BYTES_PER_LINE);
 		}
+	}
+}
+
+const fn previous_multiple_of(multiple: usize, number: usize) -> usize {
+	if number == 0 {
+		0
+	} else {
+		(number - 1) - ((number - 1) % multiple)
 	}
 }
