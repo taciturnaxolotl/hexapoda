@@ -1,5 +1,6 @@
-use std::{cmp::min, env, fs::File, io::Read, process::exit};
+use std::{cmp::min, env, fs::File, io::Read, path::PathBuf, process::exit};
 use crossterm::{event::{self, Event, KeyCode, KeyModifiers}, terminal::window_size};
+use ratatui::style::Color;
 
 use crate::{BYTES_PER_LINE, cursor::Cursor};
 
@@ -7,6 +8,7 @@ mod widget;
 
 #[derive(Debug)]
 pub struct App {
+	pub file_name: String,
 	pub contents: Vec<u8>,
 	pub window_rows: usize,
 	pub scroll_position: usize,
@@ -19,12 +21,30 @@ pub struct App {
 
 #[derive(Debug)]
 pub enum Mode {
-	Normal, Visual, Insert
+	Normal, Select, Insert
 }
 
 #[derive(Debug)]
 pub enum PartialShortcut {
 	Goto, Zview
+}
+
+impl Mode {
+	pub const fn label(&self) -> &'static str {
+		match self {
+			Self::Normal => " NORMAL ",
+			Self::Select => " SELECT ",
+			Self::Insert => " INSERT ",
+		}
+	}
+	
+	pub const fn color(&self) -> Color {
+		match self {
+			Self::Normal => Color::Blue,
+			Self::Select => Color::Yellow,
+			Self::Insert => Color::Green,
+		}
+	}
 }
 
 impl App {
@@ -38,15 +58,17 @@ impl App {
 		
 		assert!(input_files.len() == 1);
 		
-		let file_name = input_files.first().unwrap();
+		let file_path: PathBuf = input_files.first().unwrap().into();
 		
-		let file = File::open(file_name);
+		let file = File::open(&file_path);
 		let mut contents = Vec::new();
 		file.unwrap().read_to_end(&mut contents).unwrap();
 		
 		Self {
+			file_name: file_path.file_name().unwrap().to_str().unwrap().to_owned(),
 			contents,
-			window_rows: window_size().unwrap().rows as usize,
+			// -1 because of the status line
+			window_rows: window_size().unwrap().rows as usize - 1,
 			scroll_position: 0,
 			cursor: Cursor::default(),
 			should_quit: false,
@@ -66,7 +88,8 @@ impl App {
 		#[allow(clippy::collapsible_match)]
 		match (&self.mode, event::read().unwrap(), &self.partial_shortcut) {
 			(Mode::Normal, Event::Resize(_, height), _) => {
-				self.window_rows = height as usize;
+				// -1 because of the status line
+				self.window_rows = height as usize - 1;
 			}
 			
 			(Mode::Normal, Event::Key(key_event), None)

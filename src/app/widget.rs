@@ -1,14 +1,13 @@
 use std::{cmp::min, iter};
-use ratatui::{text::{Line, Span, Text}, widgets::Widget};
+use ratatui::{buffer::Buffer, layout::Rect, text::{Line, Text}, widgets::Widget};
 
 use crate::{BYTES_PER_LINE, app::App};
 
 impl Widget for &App {
-	fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
-		let screen_end = self.scroll_position + BYTES_PER_LINE * (area.height as usize);
+	fn render(self, area: Rect, buf: &mut Buffer) {
+		let screen_end = self.scroll_position + BYTES_PER_LINE * (area.height as usize - 1);
 		let bytes_end = min(screen_end, self.contents.len());
 		
-		// TODO: bounds check this
 		let bytes_to_render = &self.contents[self.scroll_position..bytes_end];
 		
 		let (chunks, remainder) = bytes_to_render
@@ -16,28 +15,28 @@ impl Widget for &App {
 		
 		assert!(remainder.is_empty());
 		
-		let lines: Vec<_> = chunks
+		let hex_lines = chunks
 			.iter()
 			.zip((self.scroll_position..).step_by(BYTES_PER_LINE))
-			.map(|(bytes, address)| self.render_line(address, bytes))
-			.collect();
+			.map(|(bytes, address)| self.render_line(address, bytes));
 		
-		let text = Text::from(lines);
+		let hex_area_text: Text = hex_lines.collect();
+		let hex_area = Rect::new(area.x, area.y, area.width, area.height - 1);
+		hex_area_text.render(hex_area, buf);
 		
-		text.render(area, buf);
+		let status_line_area = Rect::new(area.x, area.bottom() - 1, area.width, 1);
+		self.render_status_line().render(status_line_area, buf);
 	}
 }
 
 impl App {
 	#[allow(mismatched_lifetime_syntaxes)]
 	fn render_line(&self, address: usize, bytes: &[u8; BYTES_PER_LINE]) -> Line {
-		let spans: Vec<Span<'_>> = iter::once(address::render_address(address))
+		iter::once(address::render_address(address))
 			.chain(self.render_chunks(address, bytes))
 			.chain(iter::once("  ".into()))
 			.chain(character_panel::render_character_panel(bytes))
-			.collect();
-	
-		Line::from(spans)
+			.collect()
 	}
 }
 
@@ -57,14 +56,14 @@ mod hex {
 	use itertools::Itertools;
 	use ratatui::{style::{Color, Style, Stylize}, text::Span};
 	
-	use crate::{BYTES_PER_CHUNK, BYTES_PER_LINE, CHUNKS_PER_LINE, app::App, cardinality::HasCardinality, cursor::InCursor, empty_span::empty_span, select_grey::SelectGrey};
+	use crate::{BYTES_PER_CHUNK, BYTES_PER_LINE, CHUNKS_PER_LINE, app::App, cardinality::HasCardinality, cursor::InCursor, empty_span::empty_span, custom_greys::CustomGreys};
 	
 	impl App {
 		pub fn render_chunks(
 			&self,
 			address: usize,
 			bytes: &[u8; BYTES_PER_LINE]
-		) -> impl IntoIterator<Item=Span<'static>> {
+		) -> impl Iterator<Item=Span<'static>> {
 			let (chunks, remainder) = bytes.as_chunks::<BYTES_PER_CHUNK>();
 			
 			assert!(remainder.is_empty());
@@ -74,7 +73,7 @@ mod hex {
 				.iter()
 				.copied()
 				.zip((address..).step_by(BYTES_PER_CHUNK))
-				.map(|(chunk, address)| self.render_chunk(address, chunk))
+				.map(|(chunk, address)| self.render_chunk(address, &chunk).collect())
 				.interleave(
 					(address..)
 						.step_by(BYTES_PER_CHUNK)
@@ -88,8 +87,8 @@ mod hex {
 		fn render_chunk(
 			&self,
 			address: usize,
-			bytes: [u8; BYTES_PER_CHUNK]
-		) -> Vec<Span<'static>> {
+			bytes: &[u8; BYTES_PER_CHUNK]
+		) -> impl Iterator<Item=Span<'static>> {
 			#[allow(unstable_name_collisions)]
 			bytes
 				.iter()
@@ -102,7 +101,6 @@ mod hex {
 						.skip(1)
 						.map(|address| self.render_space_before(address))
 				)
-				.collect()
 		}
 		
 		fn render_byte_at(
@@ -203,7 +201,7 @@ mod character_panel {
 	
 	pub fn render_character_panel(
 		bytes: &[u8; BYTES_PER_LINE]
-	) -> impl IntoIterator<Item=Span<'static>> {
+	) -> impl Iterator<Item=Span<'static>> {
 		bytes
 			.iter()
 			.copied()
@@ -255,5 +253,33 @@ mod character_panel {
 		const LOOK_UP_TABLE: [&str; u8::CARDINALITY] = ["⋄", "•", "•", "•", "•", "•", "•", "•", "•", "→", "⏎", "•", "•", "␍", "•", "•", "•", "•", "•", "•", "•", "•", "•", "•", "•", "•", "•", "•", "•", "•", "•", "•", " ", "!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~", "•", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "×", "╳"];
 		
 		LOOK_UP_TABLE[byte as usize]
+	}
+}
+
+mod status_line {
+	use crate::{app::App, custom_greys::CustomGreys};
+	use ratatui::{style::{Color, Stylize}, text::{Line, Span, Text}};
+	
+	impl App {
+		pub fn render_status_line(&self) -> Text<'_> {
+			Text::from(
+				Line::from_iter([
+					self.render_mode(),
+					" ".into(),
+					self.render_file_name()
+				])
+			)
+			.bg(Color::ui_grey())
+		}
+		
+		fn render_mode(&self) -> Span<'static> {
+			Span::from(self.mode.label())
+				.fg(Color::Black)
+				.bg(self.mode.color())
+		}
+		
+		fn render_file_name(&self) -> Span<'_> {
+			Span::from(&self.file_name)
+		}
 	}
 }

@@ -5,7 +5,7 @@ use app::App;
 
 mod cardinality;
 mod empty_span;
-mod select_grey;
+mod custom_greys;
 mod app;
 mod cursor;
 
@@ -16,6 +16,8 @@ const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 // TODO:
 // - modes
 //   - g/v/z
+// - search
+// - jumplist
 // - modifications
 //   - insert/append
 //   - replace
