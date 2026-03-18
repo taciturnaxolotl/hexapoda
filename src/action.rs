@@ -9,9 +9,9 @@ pub enum Action {
 	NormalMode,
 	SelectMode,
 	
-	GPartial,
-	ZPartial,
-	RPartial,
+	Goto,
+	Zview,
+	Replace,
 	
 	MoveByteUp,
 	MoveByteDown,
@@ -61,9 +61,9 @@ impl App {
 			Action::NormalMode => self.normal_mode(),
 			Action::SelectMode => self.select_mode(),
 			
-			Action::GPartial => self.g_partial(),
-			Action::ZPartial => self.z_partial(),
-			Action::RPartial => self.r_partial(),
+			Action::Goto => self.goto(),
+			Action::Zview => self.zview(),
+			Action::Replace => self.replace(),
 			
 			Action::MoveByteUp => self.move_byte_up(),
 			Action::MoveByteDown => self.move_byte_down(),
@@ -118,15 +118,15 @@ impl App {
 		self.mode = Mode::Select;
 	}
 	
-	const fn g_partial(&mut self) {
+	const fn goto(&mut self) {
 		self.partial_action = Some(PartialAction::Goto);
 	}
 	
-	const fn z_partial(&mut self) {
+	const fn zview(&mut self) {
 		self.partial_action = Some(PartialAction::Zview);
 	}
 	
-	const fn r_partial(&mut self) {
+	const fn replace(&mut self) {
 		self.partial_action = Some(PartialAction::Replace);
 	}
 	
@@ -343,7 +343,7 @@ impl App {
 		self.execute_and_add(
 			EditAction::Delete {
 				cursor: self.cursor,
-				data: self.contents[self.cursor.range()].into()
+				old_data: self.contents[self.cursor.range()].into()
 			}
 		);
 		

@@ -1,6 +1,6 @@
 use std::ops::RangeInclusive;
 
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Cursor {
 	pub head: usize,
 	pub tail: usize

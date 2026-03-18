@@ -103,9 +103,9 @@ impl Default for Config {
 					
 					("v".try_into().unwrap(), Action::SelectMode),
 					
-					("g".try_into().unwrap(), Action::GPartial),
-					("z".try_into().unwrap(), Action::ZPartial),
-					("r".try_into().unwrap(), Action::RPartial),
+					("g".try_into().unwrap(), Action::Goto),
+					("z".try_into().unwrap(), Action::Zview),
+					("r".try_into().unwrap(), Action::Replace),
 					
 					("i".try_into().unwrap(), Action::MoveByteUp),
 					("k".try_into().unwrap(), Action::MoveByteDown),
@@ -147,9 +147,9 @@ impl Default for Config {
 					
 					("v".try_into().unwrap(), Action::NormalMode),
 					
-					("g".try_into().unwrap(), Action::GPartial),
-					("z".try_into().unwrap(), Action::ZPartial),
-					("r".try_into().unwrap(), Action::RPartial),
+					("g".try_into().unwrap(), Action::Goto),
+					("z".try_into().unwrap(), Action::Zview),
+					("r".try_into().unwrap(), Action::Replace),
 					
 					("i".try_into().unwrap(), Action::ExtendByteUp),
 					("k".try_into().unwrap(), Action::ExtendByteDown),

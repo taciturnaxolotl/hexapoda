@@ -394,7 +394,7 @@ mod status_line {
 }
 
 mod extra_statuses {
-	use crate::app::{App, PartialAction};
+	use crate::app::App;
 	use ratatui::text::Line;
 	
 	impl App {
@@ -404,7 +404,7 @@ mod extra_statuses {
 			
 			let partial_action = self.partial_action
 				.as_ref()
-				.map_or("", PartialAction::label);
+				.map_or("", |partial_action| partial_action.label());
 			
 			format!("{partial_action} {percentage:.0}% ").into()
 		}

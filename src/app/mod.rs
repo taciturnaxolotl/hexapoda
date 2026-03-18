@@ -20,6 +20,7 @@ pub struct App {
 	
 	pub mode: Mode,
 	pub partial_action: Option<PartialAction>,
+	pub partial_replace: Option<u8>,
 	
 	pub edit_history: Vec<EditAction>,
 	// some index to keep track of where we are? edit_prophecy?
@@ -27,18 +28,18 @@ pub struct App {
 	pub logs: Vec<String>,
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Mode {
 	Normal, Select, Insert
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub enum PartialAction {
 	Goto, Zview, Replace
 }
 
 impl Mode {
-	pub const fn label(&self) -> &'static str {
+	pub const fn label(self) -> &'static str {
 		match self {
 			Self::Normal => " NORMAL ",
 			Self::Select => " SELECT ",
@@ -46,7 +47,7 @@ impl Mode {
 		}
 	}
 	
-	pub const fn color(&self) -> Color {
+	pub const fn color(self) -> Color {
 		match self {
 			Self::Normal => Color::Blue,
 			Self::Select => Color::Yellow,
@@ -56,7 +57,7 @@ impl Mode {
 }
 
 impl PartialAction {
-	pub const fn label(&self) -> &'static str {
+	pub const fn label(self) -> &'static str {
 		match self {
 			Self::Goto => "g",
 			Self::Zview => "z",
@@ -98,6 +99,7 @@ impl App {
 			
 			mode: Mode::Normal,
 			partial_action: None,
+			partial_replace: None,
 			
 			edit_history: Vec::new(),
 			
@@ -122,17 +124,69 @@ impl App {
 	}
 	
 	fn handle_key(&mut self, event: KeyEvent) {
-		let should_reset_partial = self.partial_action.is_some();
-		
-		if let Some(mode_config) = self.config.0.get(&self.mode) &&
-		   let Some(keybinds) = mode_config.0.get(&self.partial_action) &&
-		   let Some(action) = keybinds.0.get(&event.into())
-		{
-			self.execute(*action);
+		if self.partial_action == Some(PartialAction::Replace) {
+			if let Some(hex_character) = event.code.as_char() &&
+			   let Some(nybble) = nybble_from_hex(hex_character)
+			{
+				if let Some(partial_replace) = self.partial_replace.take() {
+					self.execute_and_add(
+						EditAction::Replace {
+							cursor: self.cursor,
+							old_data: self.contents[self.cursor.range()].into(),
+							new_byte: partial_replace << 4 | nybble
+						}
+					);
+					self.partial_action = None;
+				} else {
+					self.partial_replace = Some(nybble);
+				}
+			} else {
+				self.partial_action = None;
+				self.partial_replace = None;
+			}
+		} else {
+			let should_reset_partial = self.partial_action.is_some();
+			
+			if let Some(mode_config) = self.config.0.get(&self.mode) &&
+			   let Some(keybinds) = mode_config.0.get(&self.partial_action) &&
+			   let Some(action) = keybinds.0.get(&event.into())
+			{
+				self.execute(*action);
+			}
+			
+			if should_reset_partial {
+				self.partial_action = None;
+			}
 		}
-		
-		if should_reset_partial {
-			self.partial_action = None;
+	}
+}
+
+fn nybble_from_hex(hex: char) -> Option<u8> {
+	if !hex.is_ascii() { return None }
+	
+	match hex {
+		'0'..='9' => Some(u8::try_from(hex).unwrap() - u8::try_from('0').unwrap()),
+		'a'..='f' => Some(u8::try_from(hex).unwrap() - u8::try_from('a').unwrap() + 10),
+		'A'..='F' => Some(u8::try_from(hex).unwrap() - u8::try_from('A').unwrap() + 10),
+		_ => None
+	}
+}
+
+mod tests {
+	#[allow(unused_imports)]
+	use crate::app::nybble_from_hex;
+	
+	#[test]
+	fn nybble_from_hex_case_doesnt_matter() {
+		for character in 'a'..='f' {
+			assert_eq!(nybble_from_hex(character), nybble_from_hex(character.to_ascii_uppercase()));
+		}
+	}
+	
+	#[test]
+	fn nybble_from_hex_digits_are_correct() {
+		for (index, character) in ('0'..='9').enumerate() {
+			assert_eq!(nybble_from_hex(character), Some(index as u8));
 		}
 	}
 }

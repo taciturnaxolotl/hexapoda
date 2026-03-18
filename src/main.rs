@@ -18,23 +18,23 @@ const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 
 // TODO:
 // - undo/redo
-// - modes
-//   - select
-//   - insert
-//   - zz/zt/zb
 // - modifications
+//   - replace
+//     - partial action(s)
 //   - insert/append
 //     - mode
-//   - replace
-//     - partial action
+//     - how this works with edit history is strange :/
+//     - add to edit history when *leaving* insert mode
 //   - replace-and-keep-going
 //     - mode
-//   - delete
 //   - change
+// - saving
+// - search
 // - edit character panel
 //   - modifier on existing keys like teehee? or jump to panel?
 //     - if jump to panel, space?
-// - search
+// - zz/zt/zb
+// - visual gg/G
 // - jumplist
 // - f/t
 //   - ascii?
@@ -52,6 +52,8 @@ const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 // - mark offsets?
 // - utf8?
 // - diffing
+
+// when AsciiChar is stabilized, use it instead of char everywhere
 
 fn main() {
 	let mut app = App::init();
