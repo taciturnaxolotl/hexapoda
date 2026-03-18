@@ -23,7 +23,8 @@ pub struct App {
 	pub partial_replace: Option<u8>,
 	
 	pub edit_history: Vec<EditAction>,
-	// some index to keep track of where we are? edit_prophecy?
+	// the index *after* the latest edit action
+	pub time_traveling: Option<usize>,
 	
 	pub logs: Vec<String>,
 }
@@ -102,6 +103,7 @@ impl App {
 			partial_replace: None,
 			
 			edit_history: Vec::new(),
+			time_traveling: None,
 			
 			logs: Vec::new(),
 		}

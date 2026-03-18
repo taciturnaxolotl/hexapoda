@@ -19,8 +19,6 @@ const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 // TODO:
 // - undo/redo
 // - modifications
-//   - replace
-//     - partial action(s)
 //   - insert/append
 //     - mode
 //     - how this works with edit history is strange :/

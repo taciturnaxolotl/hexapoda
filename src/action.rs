@@ -1,4 +1,4 @@
-use std::{cmp::min, mem::swap};
+use std::{cmp::min, mem::{replace, swap}};
 
 use crate::{BYTES_PER_LINE, app::{App, Mode, PartialAction}, edit_action::EditAction};
 
@@ -51,6 +51,9 @@ pub enum Action {
 	ExtendLineAbove,
 	
 	Delete,
+	
+	Undo,
+	Redo,
 }
 
 impl App {
@@ -103,6 +106,9 @@ impl App {
 			Action::ExtendLineAbove => self.extend_line_above(),
 			
 			Action::Delete => self.delete(),
+			
+			Action::Undo => self.undo(),
+			Action::Redo => self.redo(),
 		}
 	}
 	
@@ -350,6 +356,45 @@ impl App {
 		if self.mode == Mode::Select {
 			self.mode = Mode::Normal;
 		}
+	}
+	
+	fn undo(&mut self) {
+		if self.time_traveling == Some(0) { return }
+		
+		let current_date = self.time_traveling
+			.map_or(self.edit_history.len() - 1, |date| date - 1);
+		
+		self.time_traveling = Some(current_date);
+		
+		let edit_action = replace(
+			&mut self.edit_history[current_date],
+			EditAction::Placeholder
+		);
+		
+		self.undo_edit(&edit_action);
+		
+		self.edit_history[current_date] = edit_action;
+	}
+	
+	fn redo(&mut self) {
+		let Some(previous_date) = self.time_traveling else { return };
+		
+		let current_date = previous_date + 1;
+		
+		self.time_traveling = if current_date == self.edit_history.len() {
+			None
+		} else {
+			Some(current_date)
+		};
+		
+		let edit_action = replace(
+			&mut self.edit_history[previous_date],
+			EditAction::Placeholder
+		);
+		
+		self.execute_edit(&edit_action);
+		
+		self.edit_history[previous_date] = edit_action;
 	}
 }
 
