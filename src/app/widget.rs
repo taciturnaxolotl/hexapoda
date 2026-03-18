@@ -19,6 +19,7 @@ impl Widget for &App {
 			.map(|(bytes, address)| self.render_line(address, bytes));
 		
 		let remainder_address = bytes_end - remainder.len();
+		#[allow(clippy::if_not_else)]
 		let remainder_line = if !remainder.is_empty() {
 			Some(self.render_partial_line(remainder_address, remainder))
 		} else {
@@ -113,6 +114,7 @@ mod hex {
 			let (chunks, remainder) = bytes.as_chunks::<BYTES_PER_CHUNK>();
 			
 			let remainder_address = address + chunks.len() * BYTES_PER_CHUNK;
+			#[allow(clippy::if_not_else)]
 			let remainder_chunks: Option<Vec<_>> = if !remainder.is_empty() {
 				Some(self.render_partial_chunk(remainder_address, remainder).collect())
 			} else {

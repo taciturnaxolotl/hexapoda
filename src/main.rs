@@ -7,14 +7,15 @@ mod cardinality;
 mod empty_span;
 mod custom_greys;
 mod app;
+mod config;
 mod cursor;
+mod action;
 
 const BYTES_PER_LINE: usize = 0x10;
 const BYTES_PER_CHUNK: usize = 4;
 const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 
 // TODO:
-// - refactor input system
 // - undo/redo
 // - x/X
 // - modes
