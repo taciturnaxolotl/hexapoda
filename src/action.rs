@@ -1,4 +1,4 @@
-use std::cmp::min;
+use std::{cmp::min, mem::swap};
 
 use crate::{BYTES_PER_LINE, app::{App, Mode, PartialAction}};
 
@@ -37,6 +37,9 @@ pub enum Action {
 	MovePreviousWordStart,
 	
 	CollapseSelection,
+	
+	ExtendLineBelow,
+	ExtendLineAbove,
 }
 
 impl App {
@@ -75,6 +78,9 @@ impl App {
 			Action::MovePreviousWordStart => self.move_previous_word_start(),
 			
 			Action::CollapseSelection => self.collapse_selection(),
+			
+			Action::ExtendLineBelow => self.extend_line_below(),
+			Action::ExtendLineAbove => self.extend_line_above(),
 		}
 	}
 	
@@ -232,6 +238,40 @@ impl App {
 	
 	const fn collapse_selection(&mut self) {
 		self.cursor.collapse();
+	}
+	
+	fn extend_line_below(&mut self) {
+		if self.cursor.tail > self.cursor.head {
+			swap(&mut self.cursor.head, &mut self.cursor.tail);
+		}
+		
+		if self.cursor.tail.is_multiple_of(BYTES_PER_LINE) &&
+           self.cursor.head % BYTES_PER_LINE == BYTES_PER_LINE - 1
+		{
+			self.cursor.head = min(
+				self.cursor.head + BYTES_PER_LINE,
+				self.contents.len() - 1
+			)
+		} else {
+			self.cursor.tail -= self.cursor.tail % BYTES_PER_LINE;
+			self.cursor.head += BYTES_PER_LINE - 1 - (self.cursor.head % BYTES_PER_LINE);
+		}
+	}
+	
+	fn extend_line_above(&mut self) {
+		if self.cursor.head > self.cursor.tail {
+			swap(&mut self.cursor.head, &mut self.cursor.tail);
+		}
+		
+		if self.cursor.head.is_multiple_of(BYTES_PER_LINE) &&
+		   (self.cursor.tail % BYTES_PER_LINE == BYTES_PER_LINE - 1 ||
+		    self.cursor.tail == self.contents.len() - 1)
+		{
+			self.cursor.head = self.cursor.head.saturating_sub(BYTES_PER_LINE);
+		} else {
+			self.cursor.head -= self.cursor.head % BYTES_PER_LINE;
+			self.cursor.tail += BYTES_PER_LINE - 1 - (self.cursor.tail % BYTES_PER_LINE);
+		}
 	}
 }
 

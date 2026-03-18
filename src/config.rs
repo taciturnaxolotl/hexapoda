@@ -128,6 +128,9 @@ impl Default for Config {
 					("b".try_into().unwrap(), Action::MovePreviousWordStart),
 					
 					(";".try_into().unwrap(), Action::CollapseSelection),
+					
+					("x".try_into().unwrap(), Action::ExtendLineBelow),
+					("X".try_into().unwrap(), Action::ExtendLineAbove),
 				].into()),
 				(Some(PartialAction::Goto), [
 					("j".try_into().unwrap(), Action::GotoLineStart),
@@ -165,6 +168,9 @@ impl Default for Config {
 					// ("b".try_into().unwrap(), Action::ExtendPreviousWordStart),
 					
 					(";".try_into().unwrap(), Action::CollapseSelection),
+					
+					("x".try_into().unwrap(), Action::ExtendLineBelow),
+					("X".try_into().unwrap(), Action::ExtendLineAbove),
 				].into())
 			].into())
 		].into()
