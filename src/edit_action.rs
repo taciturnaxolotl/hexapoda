@@ -1,5 +1,5 @@
 use std::cmp::min;
-use crate::{app::App, cursor::Cursor};
+use crate::{buffer::Buffer, cursor::Cursor};
 
 #[derive(Debug)]
 pub enum EditAction {
@@ -25,7 +25,7 @@ pub enum EditAction {
 	// }
 }
 
-impl App {
+impl Buffer {
 	pub fn execute_and_add(&mut self, edit_action: EditAction) {
 		assert!(!matches!(edit_action, EditAction::Placeholder));
 		

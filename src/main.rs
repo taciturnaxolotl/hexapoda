@@ -3,14 +3,16 @@
 
 use app::App;
 
-mod cardinality;
-mod empty_span;
-mod custom_greys;
 mod app;
+mod buffer;
 mod config;
 mod cursor;
 mod action;
 mod edit_action;
+
+mod cardinality;
+mod empty_span;
+mod custom_greys;
 
 const BYTES_PER_LINE: usize = 0x10;
 const BYTES_PER_CHUNK: usize = 4;
@@ -18,7 +20,6 @@ const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 
 // TODO:
 // - multiple buffers (tabs)
-//   - add a field for 'lines not couting for hex height' to offset status/tab bar/search bar
 // - search
 // - modifications
 //   - insert/append
@@ -54,7 +55,7 @@ const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 // when AsciiChar is stabilized, use it instead of char everywhere
 
 fn main() {
-	let mut app = App::init();
+	let mut app = App::new();
 	let mut terminal = ratatui::init();
 	
 	while !app.should_quit {

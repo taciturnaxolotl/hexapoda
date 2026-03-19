@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use crate::{action::Action, app::{Mode, PartialAction}};
+use crate::{action::Action, buffer::{Mode, PartialAction}};
 
 pub struct Config(
 	pub HashMap<Mode, ModeConfig>
@@ -99,8 +99,8 @@ impl Default for Config {
 		[
 			(Mode::Normal, [
 				(None, [
-					("q".try_into().unwrap(), Action::QuitIfSaved),
-					("Q".try_into().unwrap(), Action::Quit),
+					("q".try_into().unwrap(), Action::CloseIfSaved),
+					("Q".try_into().unwrap(), Action::Close),
 					
 					("v".try_into().unwrap(), Action::SelectMode),
 					
@@ -151,8 +151,8 @@ impl Default for Config {
 			].into()),
 			(Mode::Select, [
 				(None, [
-					("q".try_into().unwrap(), Action::QuitIfSaved),
-					("Q".try_into().unwrap(), Action::Quit),
+					("q".try_into().unwrap(), Action::CloseIfSaved),
+					("Q".try_into().unwrap(), Action::Close),
 					
 					("v".try_into().unwrap(), Action::NormalMode),
 					

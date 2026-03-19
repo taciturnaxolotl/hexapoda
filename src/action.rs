@@ -1,11 +1,11 @@
 use std::{cmp::min, fs::File, io::Write, mem::{replace, swap}};
 use ratatui::{style::Stylize, text::Span};
-use crate::{BYTES_PER_LINE, app::{App, Mode, PartialAction}, edit_action::EditAction};
+use crate::{BYTES_PER_LINE, app::WindowSize, buffer::{Buffer, Mode, PartialAction}, edit_action::EditAction};
 
 #[derive(Clone, Copy)]
 pub enum Action {
-	QuitIfSaved,
-	Quit,
+	CloseIfSaved,
+	Close,
 	
 	NormalMode,
 	SelectMode,
@@ -60,11 +60,11 @@ pub enum Action {
 	Save,
 }
 
-impl App {
-	pub fn execute(&mut self, action: Action) {
+impl Buffer {
+	pub fn execute(&mut self, action: Action, window_size: WindowSize) {
 		match action {
-			Action::QuitIfSaved => self.quit_if_saved(),
-			Action::Quit => self.quit(),
+			Action::CloseIfSaved => self.close_if_saved(),
+			Action::Close => self.close(),
 			
 			Action::NormalMode => self.normal_mode(),
 			Action::SelectMode => self.select_mode(),
@@ -74,37 +74,37 @@ impl App {
 			Action::Replace => self.replace(),
 			Action::Space => self.space(),
 			
-			Action::MoveByteUp => self.move_byte_up(),
-			Action::MoveByteDown => self.move_byte_down(),
-			Action::MoveByteLeft => self.move_byte_left(),
-			Action::MoveByteRight => self.move_byte_right(),
+			Action::MoveByteUp => self.move_byte_up(window_size),
+			Action::MoveByteDown => self.move_byte_down(window_size),
+			Action::MoveByteLeft => self.move_byte_left(window_size),
+			Action::MoveByteRight => self.move_byte_right(window_size),
 			
-			Action::ExtendByteUp => self.extend_byte_up(),
-			Action::ExtendByteDown => self.extend_byte_down(),
-			Action::ExtendByteLeft => self.extend_byte_left(),
-			Action::ExtendByteRight => self.extend_byte_right(),
+			Action::ExtendByteUp => self.extend_byte_up(window_size),
+			Action::ExtendByteDown => self.extend_byte_down(window_size),
+			Action::ExtendByteLeft => self.extend_byte_left(window_size),
+			Action::ExtendByteRight => self.extend_byte_right(window_size),
 			
 			Action::GotoLineStart => self.goto_line_start(),
 			Action::GotoLineEnd => self.goto_line_end(),
-			Action::GotoFileStart => self.goto_file_start(),
-			Action::GotoFileEnd => self.goto_file_end(),
+			Action::GotoFileStart => self.goto_file_start(window_size),
+			Action::GotoFileEnd => self.goto_file_end(window_size),
 			
-			Action::ScrollDown => self.scroll_down(),
-			Action::ScrollUp => self.scroll_up(),
+			Action::ScrollDown => self.scroll_down(window_size),
+			Action::ScrollUp => self.scroll_up(window_size),
 			
-			Action::PageCursorHalfDown => self.page_cursor_half_down(),
-			Action::PageCursorHalfUp => self.page_cursor_half_up(),
+			Action::PageCursorHalfDown => self.page_cursor_half_down(window_size),
+			Action::PageCursorHalfUp => self.page_cursor_half_up(window_size),
 			
-			Action::PageDown => self.page_down(),
-			Action::PageUp => self.page_up(),
+			Action::PageDown => self.page_down(window_size),
+			Action::PageUp => self.page_up(window_size),
 			
-			Action::MoveNextWordStart => self.move_next_word_start(),
-			Action::MoveNextWordEnd => self.move_next_word_end(),
-			Action::MovePreviousWordStart => self.move_previous_word_start(),
+			Action::MoveNextWordStart => self.move_next_word_start(window_size),
+			Action::MoveNextWordEnd => self.move_next_word_end(window_size),
+			Action::MovePreviousWordStart => self.move_previous_word_start(window_size),
 			
-			Action::ExtendNextWordStart => self.extend_next_word_start(),
-			Action::ExtendNextWordEnd => self.extend_next_word_end(),
-			Action::ExtendPreviousWordStart => self.extend_previous_word_start(),
+			Action::ExtendNextWordStart => self.extend_next_word_start(window_size),
+			Action::ExtendNextWordEnd => self.extend_next_word_end(window_size),
+			Action::ExtendPreviousWordStart => self.extend_previous_word_start(window_size),
 			
 			Action::CollapseSelection => self.collapse_selection(),
 			
@@ -120,9 +120,9 @@ impl App {
 		}
 	}
 	
-	fn quit_if_saved(&mut self) {
+	fn close_if_saved(&mut self) {
 		if self.all_changes_saved() {
-			self.quit();
+			self.close();
 		} else {
 			self.alert_message = Span::from(
 				"there are unsaved changes, use Q to override"
@@ -130,8 +130,8 @@ impl App {
 		}
 	}
 	
-	const fn quit(&mut self) {
-		self.should_quit = true;
+	const fn close(&mut self) {
+		self.should_close = true;
 	}
 	
 	const fn normal_mode(&mut self) {
@@ -160,67 +160,67 @@ impl App {
 		self.partial_action = Some(PartialAction::Space);
 	}
 	
-	const fn move_byte_up(&mut self) {
+	const fn move_byte_up(&mut self, window_size: WindowSize) {
 		if self.cursor.head >= BYTES_PER_LINE {
 			self.cursor.head -= BYTES_PER_LINE;
 			self.cursor.collapse();
 			
-			self.clamp_screen_to_cursor();
+			self.clamp_screen_to_cursor(window_size);
 		}
 	}
 	
-	const fn move_byte_down(&mut self) {
+	const fn move_byte_down(&mut self, window_size: WindowSize) {
 		if self.max_contents_index() - self.cursor.head >= BYTES_PER_LINE {
 			self.cursor.head += BYTES_PER_LINE;
 			self.cursor.collapse();
 			
-			self.clamp_screen_to_cursor();
+			self.clamp_screen_to_cursor(window_size);
 		}
 	}
 	
-	const fn move_byte_left(&mut self) {
+	const fn move_byte_left(&mut self, window_size: WindowSize) {
 		if self.cursor.head >= 1 {
 			self.cursor.head -= 1;
 			self.cursor.collapse();
 			
-			self.clamp_screen_to_cursor();
+			self.clamp_screen_to_cursor(window_size);
 		}
 	}
 	
-	const fn move_byte_right(&mut self) {
+	const fn move_byte_right(&mut self, window_size: WindowSize) {
 		if self.max_contents_index() - self.cursor.head >= 1 {
 			self.cursor.head += 1;
 			self.cursor.collapse();
 			
-			self.clamp_screen_to_cursor();
+			self.clamp_screen_to_cursor(window_size);
 		}
 	}
 	
-	const fn extend_byte_up(&mut self) {
+	const fn extend_byte_up(&mut self, window_size: WindowSize) {
 		if self.cursor.head >= BYTES_PER_LINE {
 			self.cursor.head -= BYTES_PER_LINE;
-			self.clamp_screen_to_cursor();
+			self.clamp_screen_to_cursor(window_size);
 		}
 	}
 	
-	const fn extend_byte_down(&mut self) {
+	const fn extend_byte_down(&mut self, window_size: WindowSize) {
 		if self.max_contents_index() - self.cursor.head >= BYTES_PER_LINE {
 			self.cursor.head += BYTES_PER_LINE;
-			self.clamp_screen_to_cursor();
+			self.clamp_screen_to_cursor(window_size);
 		}
 	}
 	
-	const fn extend_byte_left(&mut self) {
+	const fn extend_byte_left(&mut self, window_size: WindowSize) {
 		if self.cursor.head >= 1 {
 			self.cursor.head -= 1;
-			self.clamp_screen_to_cursor();
+			self.clamp_screen_to_cursor(window_size);
 		}
 	}
 	
-	const fn extend_byte_right(&mut self) {
+	const fn extend_byte_right(&mut self, window_size: WindowSize) {
 		if self.max_contents_index() - self.cursor.head >= 1 {
 			self.cursor.head += 1;
-			self.clamp_screen_to_cursor();
+			self.clamp_screen_to_cursor(window_size);
 		}
 	}
 	
@@ -237,43 +237,43 @@ impl App {
 		self.cursor.collapse();
 	}
 	
-	const fn goto_file_start(&mut self) {
+	const fn goto_file_start(&mut self, window_size: WindowSize) {
 		self.cursor.head %= BYTES_PER_LINE;
 		self.cursor.collapse();
-		self.clamp_screen_to_cursor();
+		self.clamp_screen_to_cursor(window_size);
 	}
 	
-	const fn goto_file_end(&mut self) {
+	const fn goto_file_end(&mut self, window_size: WindowSize) {
 		self.cursor.head = previous_multiple_of(BYTES_PER_LINE, self.contents.len()) +
 			(self.cursor.head % BYTES_PER_LINE);
 		
 		self.cursor.collapse();
-		self.clamp_screen_to_cursor();
+		self.clamp_screen_to_cursor(window_size);
 	}
 	
-	fn scroll_down(&mut self) {
+	fn scroll_down(&mut self, window_size: WindowSize) {
 		if self.contents.len() <= 5 * BYTES_PER_LINE { return; }
 		
 		self.scroll_position = min(
 			self.scroll_position + BYTES_PER_LINE,
 			self.contents.len() - (5 * BYTES_PER_LINE)
 		);
-		self.cursor.clamp(self.scroll_position, self.screen_size());
+		self.cursor.clamp(self.scroll_position, window_size.visible_byte_count());
 	}
 	
-	fn scroll_up(&mut self) {
+	fn scroll_up(&mut self, window_size: WindowSize) {
 		self.scroll_position = self.scroll_position.saturating_sub(BYTES_PER_LINE);
-		self.cursor.clamp(self.scroll_position, self.screen_size());
+		self.cursor.clamp(self.scroll_position, window_size.visible_byte_count());
 	}
 	
-	fn page_cursor_half_down(&mut self) {
+	fn page_cursor_half_down(&mut self, window_size: WindowSize) {
 		if self.contents.len() <= 5 * BYTES_PER_LINE { return; }
 		
 		let head_offset = self.cursor.head - self.scroll_position;
 		let tail_offset = self.cursor.tail - self.scroll_position;
 		
 		self.scroll_position = min(
-			self.scroll_position + (self.screen_size() / 2).next_multiple_of(BYTES_PER_LINE),
+			self.scroll_position + (window_size.visible_byte_count() / 2).next_multiple_of(BYTES_PER_LINE),
 			self.contents.len() - (5 * BYTES_PER_LINE)
 		);
 		
@@ -281,63 +281,63 @@ impl App {
 		self.cursor.tail = (self.scroll_position + tail_offset).min(self.max_contents_index());
 	}
 	
-	fn page_cursor_half_up(&mut self) {
+	fn page_cursor_half_up(&mut self, window_size: WindowSize) {
 		let head_offset = self.cursor.head - self.scroll_position;
 		let tail_offset = self.cursor.tail - self.scroll_position;
 		
 		self.scroll_position = self.scroll_position.saturating_sub(
-			(self.screen_size() / 2).next_multiple_of(BYTES_PER_LINE)
+			(window_size.visible_byte_count() / 2).next_multiple_of(BYTES_PER_LINE)
 		);
 		
 		self.cursor.head = (self.scroll_position + head_offset).min(self.max_contents_index());
 		self.cursor.tail = (self.scroll_position + tail_offset).min(self.max_contents_index());
 	}
 	
-	fn page_down(&mut self) {
+	fn page_down(&mut self, window_size: WindowSize) {
 		if self.contents.len() <= 5 * BYTES_PER_LINE { return; }
 		
 		self.scroll_position = min(
-			self.scroll_position + self.screen_size(),
+			self.scroll_position + window_size.visible_byte_count(),
 			self.contents.len() - (5 * BYTES_PER_LINE)
 		);
-		self.cursor.clamp(self.scroll_position, self.screen_size());
+		self.cursor.clamp(self.scroll_position, window_size.visible_byte_count());
 	}
 	
-	fn page_up(&mut self) {
+	fn page_up(&mut self, window_size: WindowSize) {
 		self.scroll_position = self.scroll_position.saturating_sub(
-			self.screen_size()
+			window_size.visible_byte_count()
 		);
-		self.cursor.clamp(self.scroll_position, self.screen_size());
+		self.cursor.clamp(self.scroll_position, window_size.visible_byte_count());
 	}
 	
-	fn move_next_word_start(&mut self) {
+	fn move_next_word_start(&mut self, window_size: WindowSize) {
 		self.cursor.move_to_next_word(self.max_contents_index());
-		self.clamp_screen_to_cursor();
+		self.clamp_screen_to_cursor(window_size);
 	}
 	
-	fn move_next_word_end(&mut self) {
+	fn move_next_word_end(&mut self, window_size: WindowSize) {
 		self.cursor.move_to_next_end(self.max_contents_index());
-		self.clamp_screen_to_cursor();
+		self.clamp_screen_to_cursor(window_size);
 	}
 	
-	const fn move_previous_word_start(&mut self) {
+	const fn move_previous_word_start(&mut self, window_size: WindowSize) {
 		self.cursor.move_to_previous_beginning();
-		self.clamp_screen_to_cursor();
+		self.clamp_screen_to_cursor(window_size);
 	}
 	
-	fn extend_next_word_start(&mut self) {
+	fn extend_next_word_start(&mut self, window_size: WindowSize) {
 		self.cursor.extend_to_next_word(self.max_contents_index());
-		self.clamp_screen_to_cursor();
+		self.clamp_screen_to_cursor(window_size);
 	}
 	
-	fn extend_next_word_end(&mut self) {
+	fn extend_next_word_end(&mut self, window_size: WindowSize) {
 		self.cursor.extend_to_next_end(self.max_contents_index());
-		self.clamp_screen_to_cursor();
+		self.clamp_screen_to_cursor(window_size);
 	}
 	
-	const fn extend_previous_word_start(&mut self) {
+	const fn extend_previous_word_start(&mut self, window_size: WindowSize) {
 		self.cursor.extend_to_previous_beginning();
-		self.clamp_screen_to_cursor();
+		self.clamp_screen_to_cursor(window_size);
 	}
 	
 	const fn collapse_selection(&mut self) {
@@ -443,21 +443,12 @@ impl App {
 }
 
 // helpers
-impl App {
-	// in bytes
-	const fn screen_size(&self) -> usize {
-		self.hex_rows() * BYTES_PER_LINE
-	}
-	
-	const fn hex_rows(&self) -> usize {
-		self.window_rows - self.covered_window_rows
-	}
-	
-	const fn clamp_screen_to_cursor(&mut self) {
+impl Buffer {
+	const fn clamp_screen_to_cursor(&mut self, window_size: WindowSize) {
 		if self.cursor.head < self.scroll_position {
 			self.scroll_position -= (self.scroll_position - self.cursor.head).next_multiple_of(BYTES_PER_LINE);
-		} else if self.cursor.head > self.scroll_position + self.screen_size() - 1 {
-			let screen_edge_offset_to_cursor = self.cursor.head - (self.scroll_position + self.screen_size() - 1);
+		} else if self.cursor.head > self.scroll_position + window_size.visible_byte_count() - 1 {
+			let screen_edge_offset_to_cursor = self.cursor.head - (self.scroll_position + window_size.visible_byte_count() - 1);
 			self.scroll_position += screen_edge_offset_to_cursor.next_multiple_of(BYTES_PER_LINE);
 		}
 	}
