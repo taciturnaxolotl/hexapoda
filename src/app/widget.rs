@@ -32,6 +32,12 @@ fn tab_for(buffer: &Buffer, is_active: bool) -> Span<'static> {
 		Color::ui_grey()
 	};
 	
-	Span::from(format!(" {} ", buffer.file_name))
+	let modified_indicator = if buffer.has_unsaved_changes() {
+		"[+]"
+	} else {
+		""
+	};
+	
+	Span::from(format!(" {}{modified_indicator} ", buffer.file_name))
 		.bg(background)
 }

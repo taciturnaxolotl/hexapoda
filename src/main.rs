@@ -19,12 +19,10 @@ const BYTES_PER_CHUNK: usize = 4;
 const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 
 // TODO:
-// - multiple buffers (tabs)
 // - search
 // - modifications
 //   - insert/append
 //     - mode
-//     - how this works with edit history is strange :/
 //     - add to edit history when *leaving* insert mode
 //   - replace-and-keep-going
 //     - mode
