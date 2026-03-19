@@ -18,6 +18,7 @@ const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 
 // TODO:
 // - multiple buffers (tabs)
+//   - add a field for 'lines not couting for hex height' to offset status/tab bar/search bar
 // - search
 // - modifications
 //   - insert/append
@@ -33,10 +34,10 @@ const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 // - zz/zt/zb
 // - visual gg/G
 // - jumplist
-// - f/t
-//   - ascii?
+// - y/p
 // - [/] to cycle view offset?
 // - J jump to offset
+//   - under cursor?
 
 // future directions
 // - switch between cursor size u8s/u16s/u32s/u64s?

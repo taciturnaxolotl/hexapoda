@@ -446,7 +446,11 @@ impl App {
 impl App {
 	// in bytes
 	const fn screen_size(&self) -> usize {
-		self.window_rows * BYTES_PER_LINE
+		self.hex_rows() * BYTES_PER_LINE
+	}
+	
+	const fn hex_rows(&self) -> usize {
+		self.window_rows - self.covered_window_rows
 	}
 	
 	const fn clamp_screen_to_cursor(&mut self) {

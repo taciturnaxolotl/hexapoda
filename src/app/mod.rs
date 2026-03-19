@@ -13,6 +13,7 @@ pub struct App {
 	pub contents: Vec<u8>,
 	
 	pub window_rows: usize,
+	pub covered_window_rows: usize,
 	
 	pub scroll_position: usize,
 	pub cursor: Cursor,
@@ -97,8 +98,9 @@ impl App {
 			
 			contents,
 			
-			// -1 because of the status line
-			window_rows: window_size().unwrap().rows as usize - 1,
+			window_rows: window_size().unwrap().rows as usize,
+			// 1 because of the status line
+			covered_window_rows: 1,
 			
 			scroll_position: 0,
 			cursor: Cursor::default(),
@@ -124,8 +126,7 @@ impl App {
 		#[allow(clippy::collapsible_match)]
 		match event::read().unwrap() {
 			Event::Resize(_, height) => {
-				// -1 because of the status line
-				self.window_rows = height as usize - 1;
+				self.window_rows = height as usize;
 			}
 			Event::Key(key_event) => self.handle_key(key_event),
 			// Event::Mouse(mouse_event) => {

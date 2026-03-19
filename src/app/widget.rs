@@ -43,6 +43,13 @@ impl Widget for &App {
 		self.render_extra_statuses()
 			.right_aligned()
 			.render(status_line_area, buf);
+		
+		// if self.partial_action == Some(PartialAction::Space) {
+		// 	let input_field_area = Rect::new(area.x, area.bottom() - 2, area.width, 1);
+		// 	Span::from("/0F673 ")
+		// 		.on_dark_gray()
+		// 		.render(input_field_area, buf);
+		// }
 	}
 }
 
