@@ -4,6 +4,7 @@ use crate::{BYTES_PER_LINE, app::{App, Mode, PartialAction}, edit_action::EditAc
 
 #[derive(Clone, Copy)]
 pub enum Action {
+	QuitIfSaved,
 	Quit,
 	
 	NormalMode,
@@ -62,6 +63,7 @@ pub enum Action {
 impl App {
 	pub fn execute(&mut self, action: Action) {
 		match action {
+			Action::QuitIfSaved => self.quit_if_saved(),
 			Action::Quit => self.quit(),
 			
 			Action::NormalMode => self.normal_mode(),
@@ -115,6 +117,14 @@ impl App {
 			Action::Redo => self.redo(),
 			
 			Action::Save => self.save(),
+		}
+	}
+	
+	const fn quit_if_saved(&mut self) {
+		if self.all_changes_saved() {
+			self.quit();
+		} else {
+			// TODO: show alert of some kind
 		}
 	}
 	

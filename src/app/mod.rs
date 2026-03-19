@@ -168,11 +168,11 @@ impl App {
 		}
 	}
 	
-	const fn has_unsaved_changes(&self) -> bool {
+	pub const fn has_unsaved_changes(&self) -> bool {
 		!self.all_changes_saved()
 	}
 	
-	const fn all_changes_saved(&self) -> bool {
+	pub const fn all_changes_saved(&self) -> bool {
 		if let Some(last_saved_at) = self.last_saved_at {
 			if let Some(time_traveling) = self.time_traveling {
 				last_saved_at == time_traveling
