@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use crate::{action::Action, buffer::{Mode, PartialAction}};
+use crate::{action::{Action, AppAction, BufferAction, CursorAction}, buffer::{Mode, PartialAction}};
 
 pub struct Config(
 	pub HashMap<Mode, ModeConfig>
@@ -97,159 +97,217 @@ impl Default for Config {
 		[
 			(Mode::Normal, [
 				(None, [
-					("q".try_into().unwrap(), Action::QuitIfSaved),
-					("Q".try_into().unwrap(), Action::Quit),
+					("q".try_into().unwrap(), AppAction::QuitIfSaved.into()),
+					("Q".try_into().unwrap(), AppAction::Quit.into()),
 					
-					("v".try_into().unwrap(), Action::SelectMode),
+					("v".try_into().unwrap(), BufferAction::SelectMode.into()),
 					
-					("g".try_into().unwrap(), Action::Goto),
-					("z".try_into().unwrap(), Action::View),
-					("r".try_into().unwrap(), Action::Replace),
-					(" ".try_into().unwrap(), Action::Space),
+					("g".try_into().unwrap(), BufferAction::Goto.into()),
+					("z".try_into().unwrap(), BufferAction::View.into()),
+					("r".try_into().unwrap(), BufferAction::Replace.into()),
+					(" ".try_into().unwrap(), BufferAction::Space.into()),
+					("*".try_into().unwrap(), BufferAction::Repeat.into()),
 					
-					("i".try_into().unwrap(), Action::MoveByteUp),
-					("k".try_into().unwrap(), Action::MoveByteDown),
-					("j".try_into().unwrap(), Action::MoveByteLeft),
-					("l".try_into().unwrap(), Action::MoveByteRight),
+					("i".try_into().unwrap(), CursorAction::MoveByteUp.into()),
+					("k".try_into().unwrap(), CursorAction::MoveByteDown.into()),
+					("j".try_into().unwrap(), CursorAction::MoveByteLeft.into()),
+					("l".try_into().unwrap(), CursorAction::MoveByteRight.into()),
 					
-					("G".try_into().unwrap(), Action::GotoFileEnd),
+					("G".try_into().unwrap(), CursorAction::GotoFileEnd.into()),
 					
-					("C-e".try_into().unwrap(), Action::ScrollDown),
-					("C-y".try_into().unwrap(), Action::ScrollUp),
+					("C-e".try_into().unwrap(), BufferAction::ScrollDown.into()),
+					("C-y".try_into().unwrap(), BufferAction::ScrollUp.into()),
 					
-					("C-d".try_into().unwrap(), Action::PageCursorHalfDown),
-					("C-u".try_into().unwrap(), Action::PageCursorHalfUp),
+					("C-d".try_into().unwrap(), BufferAction::PageCursorHalfDown.into()),
+					("C-u".try_into().unwrap(), BufferAction::PageCursorHalfUp.into()),
 					
-					("C-f".try_into().unwrap(), Action::PageDown),
-					("C-b".try_into().unwrap(), Action::PageUp),
+					("C-f".try_into().unwrap(), BufferAction::PageDown.into()),
+					("C-b".try_into().unwrap(), BufferAction::PageUp.into()),
 					
-					("w".try_into().unwrap(), Action::MoveNextWordStart),
-					("e".try_into().unwrap(), Action::MoveNextWordEnd),
-					("b".try_into().unwrap(), Action::MovePreviousWordStart),
+					("w".try_into().unwrap(), CursorAction::MoveNextWordStart.into()),
+					("e".try_into().unwrap(), CursorAction::MoveNextWordEnd.into()),
+					("b".try_into().unwrap(), CursorAction::MovePreviousWordStart.into()),
 					
-					(";".try_into().unwrap(), Action::CollapseSelection),
-					("A-;".try_into().unwrap(), Action::FlipSelections),
+					(";".try_into().unwrap(), BufferAction::CollapseSelection.into()),
+					("A-;".try_into().unwrap(), BufferAction::FlipSelections.into()),
 					
-					("x".try_into().unwrap(), Action::ExtendLineBelow),
-					("X".try_into().unwrap(), Action::ExtendLineAbove),
+					("x".try_into().unwrap(), CursorAction::ExtendLineBelow.into()),
+					("X".try_into().unwrap(), CursorAction::ExtendLineAbove.into()),
 					
-					("d".try_into().unwrap(), Action::Delete),
+					("d".try_into().unwrap(), BufferAction::Delete.into()),
 					
-					("u".try_into().unwrap(), Action::Undo),
-					("U".try_into().unwrap(), Action::Redo),
+					("u".try_into().unwrap(), BufferAction::Undo.into()),
+					("U".try_into().unwrap(), BufferAction::Redo.into()),
 					
-					("C-j".try_into().unwrap(), Action::PreviousBuffer),
-					("C-l".try_into().unwrap(), Action::NextBuffer),
+					("C-j".try_into().unwrap(), AppAction::PreviousBuffer.into()),
+					("C-l".try_into().unwrap(), AppAction::NextBuffer.into()),
 					
-					("C".try_into().unwrap(), Action::CopySelectionOnNextLine),
+					("C".try_into().unwrap(), BufferAction::CopySelectionOnNextLine.into()),
 					
-					("(".try_into().unwrap(), Action::RotateSelectionsBackward),
-					(")".try_into().unwrap(), Action::RotateSelectionsForward),
+					("(".try_into().unwrap(), BufferAction::RotateSelectionsBackward.into()),
+					(")".try_into().unwrap(), BufferAction::RotateSelectionsForward.into()),
 					
-					(",".try_into().unwrap(), Action::KeepPrimarySelection),
-					("A-,".try_into().unwrap(), Action::RemovePrimarySelection),
+					(",".try_into().unwrap(), BufferAction::KeepPrimarySelection.into()),
+					("A-,".try_into().unwrap(), BufferAction::RemovePrimarySelection.into()),
 					
-					("1".try_into().unwrap(), Action::SplitSelectionsInto1s),
-					("2".try_into().unwrap(), Action::SplitSelectionsInto2s),
-					("3".try_into().unwrap(), Action::SplitSelectionsInto3s),
-					("4".try_into().unwrap(), Action::SplitSelectionsInto4s),
-					("5".try_into().unwrap(), Action::SplitSelectionsInto5s),
-					("6".try_into().unwrap(), Action::SplitSelectionsInto6s),
-					("7".try_into().unwrap(), Action::SplitSelectionsInto7s),
-					("8".try_into().unwrap(), Action::SplitSelectionsInto8s),
-					("9".try_into().unwrap(), Action::SplitSelectionsInto9s),
+					("1".try_into().unwrap(), BufferAction::SplitSelectionsInto1s.into()),
+					("2".try_into().unwrap(), BufferAction::SplitSelectionsInto2s.into()),
+					("3".try_into().unwrap(), BufferAction::SplitSelectionsInto3s.into()),
+					("4".try_into().unwrap(), BufferAction::SplitSelectionsInto4s.into()),
+					("5".try_into().unwrap(), BufferAction::SplitSelectionsInto5s.into()),
+					("6".try_into().unwrap(), BufferAction::SplitSelectionsInto6s.into()),
+					("7".try_into().unwrap(), BufferAction::SplitSelectionsInto7s.into()),
+					("8".try_into().unwrap(), BufferAction::SplitSelectionsInto8s.into()),
+					("9".try_into().unwrap(), BufferAction::SplitSelectionsInto9s.into()),
 					
-					("J".try_into().unwrap(), Action::JumpToSelectedOffsetRelativeToMark),
-					("A-J".try_into().unwrap(), Action::JumpToSelectedOffset),
+					("J".try_into().unwrap(), BufferAction::JumpToSelectedOffsetRelativeToMark.into()),
+					("A-J".try_into().unwrap(), BufferAction::JumpToSelectedOffset.into()),
 					
-					("m".try_into().unwrap(), Action::ToggleMark),
+					("m".try_into().unwrap(), BufferAction::ToggleMark.into()),
+					
+					("y".try_into().unwrap(), AppAction::Yank.into()),
 				].into()),
 				(Some(PartialAction::Goto), [
-					("j".try_into().unwrap(), Action::GotoLineStart),
-					("l".try_into().unwrap(), Action::GotoLineEnd),
+					("j".try_into().unwrap(), CursorAction::GotoLineStart.into()),
+					("l".try_into().unwrap(), CursorAction::GotoLineEnd.into()),
 					
-					("g".try_into().unwrap(), Action::GotoFileStart),
+					("g".try_into().unwrap(), CursorAction::GotoFileStart.into()),
 				].into()),
 				(Some(PartialAction::View), [
-					("z".try_into().unwrap(), Action::AlignViewCenter),
-					("b".try_into().unwrap(), Action::AlignViewBottom),
-					("t".try_into().unwrap(), Action::AlignViewTop),
+					("z".try_into().unwrap(), BufferAction::AlignViewCenter.into()),
+					("b".try_into().unwrap(), BufferAction::AlignViewBottom.into()),
+					("t".try_into().unwrap(), BufferAction::AlignViewTop.into()),
 				].into()),
 				(Some(PartialAction::Space), [
-					("w".try_into().unwrap(), Action::Save),
+					("w".try_into().unwrap(), BufferAction::Save.into()),
+				].into()),
+				(Some(PartialAction::Repeat), [
+					("i".try_into().unwrap(), CursorAction::MoveByteUp.into()),
+					("k".try_into().unwrap(), CursorAction::MoveByteDown.into()),
+					("j".try_into().unwrap(), CursorAction::MoveByteLeft.into()),
+					("l".try_into().unwrap(), CursorAction::MoveByteRight.into()),
+					
+					("C-e".try_into().unwrap(), BufferAction::ScrollDown.into()),
+					("C-y".try_into().unwrap(), BufferAction::ScrollUp.into()),
+					
+					("C-d".try_into().unwrap(), BufferAction::PageCursorHalfDown.into()),
+					("C-u".try_into().unwrap(), BufferAction::PageCursorHalfUp.into()),
+					
+					("C-f".try_into().unwrap(), BufferAction::PageDown.into()),
+					("C-b".try_into().unwrap(), BufferAction::PageUp.into()),
+					
+					("w".try_into().unwrap(), CursorAction::MoveNextWordStart.into()),
+					("e".try_into().unwrap(), CursorAction::MoveNextWordEnd.into()),
+					("b".try_into().unwrap(), CursorAction::MovePreviousWordStart.into()),
+					
+					("x".try_into().unwrap(), CursorAction::ExtendLineBelow.into()),
+					("X".try_into().unwrap(), CursorAction::ExtendLineAbove.into()),
+					
+					("d".try_into().unwrap(), BufferAction::Delete.into()),
+					
+					("C".try_into().unwrap(), BufferAction::CopySelectionOnNextLine.into()),
 				].into()),
 			].into()),
 			(Mode::Select, [
 				(None, [
-					("q".try_into().unwrap(), Action::QuitIfSaved),
-					("Q".try_into().unwrap(), Action::Quit),
+					("q".try_into().unwrap(), AppAction::QuitIfSaved.into()),
+					("Q".try_into().unwrap(), AppAction::Quit.into()),
 					
-					("v".try_into().unwrap(), Action::NormalMode),
+					("v".try_into().unwrap(), BufferAction::NormalMode.into()),
 					
-					("g".try_into().unwrap(), Action::Goto),
-					("z".try_into().unwrap(), Action::View),
-					("r".try_into().unwrap(), Action::Replace),
-					(" ".try_into().unwrap(), Action::Space),
+					("g".try_into().unwrap(), BufferAction::Goto.into()),
+					("z".try_into().unwrap(), BufferAction::View.into()),
+					("r".try_into().unwrap(), BufferAction::Replace.into()),
+					(" ".try_into().unwrap(), BufferAction::Space.into()),
+					("*".try_into().unwrap(), BufferAction::Repeat.into()),
 					
-					("i".try_into().unwrap(), Action::ExtendByteUp),
-					("k".try_into().unwrap(), Action::ExtendByteDown),
-					("j".try_into().unwrap(), Action::ExtendByteLeft),
-					("l".try_into().unwrap(), Action::ExtendByteRight),
+					("i".try_into().unwrap(), CursorAction::ExtendByteUp.into()),
+					("k".try_into().unwrap(), CursorAction::ExtendByteDown.into()),
+					("j".try_into().unwrap(), CursorAction::ExtendByteLeft.into()),
+					("l".try_into().unwrap(), CursorAction::ExtendByteRight.into()),
 					
-					("C-e".try_into().unwrap(), Action::ScrollDown),
-					("C-y".try_into().unwrap(), Action::ScrollUp),
+					("C-e".try_into().unwrap(), BufferAction::ScrollDown.into()),
+					("C-y".try_into().unwrap(), BufferAction::ScrollUp.into()),
 					
-					("C-d".try_into().unwrap(), Action::PageCursorHalfDown),
-					("C-u".try_into().unwrap(), Action::PageCursorHalfUp),
+					("C-d".try_into().unwrap(), BufferAction::PageCursorHalfDown.into()),
+					("C-u".try_into().unwrap(), BufferAction::PageCursorHalfUp.into()),
 					
-					("C-f".try_into().unwrap(), Action::PageDown),
-					("C-b".try_into().unwrap(), Action::PageUp),
+					("C-f".try_into().unwrap(), BufferAction::PageDown.into()),
+					("C-b".try_into().unwrap(), BufferAction::PageUp.into()),
 					
-					("w".try_into().unwrap(), Action::ExtendNextWordStart),
-					("e".try_into().unwrap(), Action::ExtendNextWordEnd),
-					("b".try_into().unwrap(), Action::ExtendPreviousWordStart),
+					("w".try_into().unwrap(), CursorAction::ExtendNextWordStart.into()),
+					("e".try_into().unwrap(), CursorAction::ExtendNextWordEnd.into()),
+					("b".try_into().unwrap(), CursorAction::ExtendPreviousWordStart.into()),
 					
-					(";".try_into().unwrap(), Action::CollapseSelection),
-					("A-;".try_into().unwrap(), Action::FlipSelections),
+					(";".try_into().unwrap(), BufferAction::CollapseSelection.into()),
+					("A-;".try_into().unwrap(), BufferAction::FlipSelections.into()),
 					
-					("x".try_into().unwrap(), Action::ExtendLineBelow),
-					("X".try_into().unwrap(), Action::ExtendLineAbove),
+					("x".try_into().unwrap(), CursorAction::ExtendLineBelow.into()),
+					("X".try_into().unwrap(), CursorAction::ExtendLineAbove.into()),
 					
-					("d".try_into().unwrap(), Action::Delete),
+					("d".try_into().unwrap(), BufferAction::Delete.into()),
 					
-					("u".try_into().unwrap(), Action::Undo),
-					("U".try_into().unwrap(), Action::Redo),
+					("u".try_into().unwrap(), BufferAction::Undo.into()),
+					("U".try_into().unwrap(), BufferAction::Redo.into()),
 					
-					("C".try_into().unwrap(), Action::CopySelectionOnNextLine),
+					("C".try_into().unwrap(), BufferAction::CopySelectionOnNextLine.into()),
 					
-					("(".try_into().unwrap(), Action::RotateSelectionsBackward),
-					(")".try_into().unwrap(), Action::RotateSelectionsForward),
+					("(".try_into().unwrap(), BufferAction::RotateSelectionsBackward.into()),
+					(")".try_into().unwrap(), BufferAction::RotateSelectionsForward.into()),
 					
-					(",".try_into().unwrap(), Action::KeepPrimarySelection),
-					("A-,".try_into().unwrap(), Action::RemovePrimarySelection),
+					(",".try_into().unwrap(), BufferAction::KeepPrimarySelection.into()),
+					("A-,".try_into().unwrap(), BufferAction::RemovePrimarySelection.into()),
 					
-					("1".try_into().unwrap(), Action::SplitSelectionsInto1s),
-					("2".try_into().unwrap(), Action::SplitSelectionsInto2s),
-					("3".try_into().unwrap(), Action::SplitSelectionsInto3s),
-					("4".try_into().unwrap(), Action::SplitSelectionsInto4s),
-					("5".try_into().unwrap(), Action::SplitSelectionsInto5s),
-					("6".try_into().unwrap(), Action::SplitSelectionsInto6s),
-					("7".try_into().unwrap(), Action::SplitSelectionsInto7s),
-					("8".try_into().unwrap(), Action::SplitSelectionsInto8s),
-					("9".try_into().unwrap(), Action::SplitSelectionsInto9s),
+					("1".try_into().unwrap(), BufferAction::SplitSelectionsInto1s.into()),
+					("2".try_into().unwrap(), BufferAction::SplitSelectionsInto2s.into()),
+					("3".try_into().unwrap(), BufferAction::SplitSelectionsInto3s.into()),
+					("4".try_into().unwrap(), BufferAction::SplitSelectionsInto4s.into()),
+					("5".try_into().unwrap(), BufferAction::SplitSelectionsInto5s.into()),
+					("6".try_into().unwrap(), BufferAction::SplitSelectionsInto6s.into()),
+					("7".try_into().unwrap(), BufferAction::SplitSelectionsInto7s.into()),
+					("8".try_into().unwrap(), BufferAction::SplitSelectionsInto8s.into()),
+					("9".try_into().unwrap(), BufferAction::SplitSelectionsInto9s.into()),
 					
-					("J".try_into().unwrap(), Action::JumpToSelectedOffsetRelativeToMark),
-					("A-J".try_into().unwrap(), Action::JumpToSelectedOffset),
+					("J".try_into().unwrap(), BufferAction::JumpToSelectedOffsetRelativeToMark.into()),
+					("A-J".try_into().unwrap(), BufferAction::JumpToSelectedOffset.into()),
 					
-					("m".try_into().unwrap(), Action::ToggleMark),
+					("m".try_into().unwrap(), BufferAction::ToggleMark.into()),
+					
+					("y".try_into().unwrap(), AppAction::Yank.into()),
 				].into()),
 				(Some(PartialAction::View), [
-					("z".try_into().unwrap(), Action::AlignViewCenter),
-					("b".try_into().unwrap(), Action::AlignViewBottom),
-					("t".try_into().unwrap(), Action::AlignViewTop),
+					("z".try_into().unwrap(), BufferAction::AlignViewCenter.into()),
+					("b".try_into().unwrap(), BufferAction::AlignViewBottom.into()),
+					("t".try_into().unwrap(), BufferAction::AlignViewTop.into()),
 				].into()),
 				(Some(PartialAction::Space), [
-					("w".try_into().unwrap(), Action::Save),
+					("w".try_into().unwrap(), BufferAction::Save.into()),
+				].into()),
+				(Some(PartialAction::Repeat), [
+					("i".try_into().unwrap(), CursorAction::ExtendByteUp.into()),
+					("k".try_into().unwrap(), CursorAction::ExtendByteDown.into()),
+					("j".try_into().unwrap(), CursorAction::ExtendByteLeft.into()),
+					("l".try_into().unwrap(), CursorAction::ExtendByteRight.into()),
+					
+					("C-e".try_into().unwrap(), BufferAction::ScrollDown.into()),
+					("C-y".try_into().unwrap(), BufferAction::ScrollUp.into()),
+					
+					("C-d".try_into().unwrap(), BufferAction::PageCursorHalfDown.into()),
+					("C-u".try_into().unwrap(), BufferAction::PageCursorHalfUp.into()),
+					
+					("C-f".try_into().unwrap(), BufferAction::PageDown.into()),
+					("C-b".try_into().unwrap(), BufferAction::PageUp.into()),
+					
+					("w".try_into().unwrap(), CursorAction::ExtendNextWordStart.into()),
+					("e".try_into().unwrap(), CursorAction::ExtendNextWordEnd.into()),
+					("b".try_into().unwrap(), CursorAction::ExtendPreviousWordStart.into()),
+					
+					("x".try_into().unwrap(), CursorAction::ExtendLineBelow.into()),
+					("X".try_into().unwrap(), CursorAction::ExtendLineAbove.into()),
+					
+					("d".try_into().unwrap(), BufferAction::Delete.into()),
+					
+					("C".try_into().unwrap(), BufferAction::CopySelectionOnNextLine.into()),
 				].into()),
 			].into())
 		].into()

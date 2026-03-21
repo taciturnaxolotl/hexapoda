@@ -11,6 +11,9 @@ pub struct App {
 	pub buffers: Vec<Buffer>,
 	pub current_buffer_index: usize,
 	
+	pub primary_cursor_register: Vec<u8>,
+	pub other_cursor_registers: Vec<Vec<u8>>,
+	
 	pub window_size: WindowSize,
 	
 	pub should_quit: bool,
@@ -52,6 +55,9 @@ impl App {
 			buffers,
 			current_buffer_index: 0,
 			
+			primary_cursor_register: Vec::new(),
+			other_cursor_registers: Vec::new(),
+			
 			window_size,
 			
 			should_quit: false,
@@ -84,6 +90,8 @@ impl App {
 		let maybe_app_action = self.buffers[self.current_buffer_index].handle_key(
 			key_event,
 			&self.config,
+			&self.primary_cursor_register,
+			&self.other_cursor_registers,
 			self.window_size
 		);
 		
@@ -94,6 +102,8 @@ impl App {
 				
 				AppAction::PreviousBuffer => self.previous_buffer(),
 				AppAction::NextBuffer => self.next_buffer(),
+				
+				AppAction::Yank => self.yank(),
 			}
 		}
 	}
@@ -182,6 +192,19 @@ impl App {
 		} else {
 			self.current_buffer_index += 1;
 		}
+	}
+	
+	fn yank(&mut self) {
+		self.primary_cursor_register = self.current_buffer()
+			.contents[self.current_buffer().primary_cursor.range()]
+			.to_vec();
+		
+		self.other_cursor_registers = self.current_buffer().cursors
+			.iter()
+			.map(|cursor| {
+				self.current_buffer().contents[cursor.range()].to_vec()
+			})
+			.collect();
 	}
 	
 	pub fn current_buffer(&self) -> &Buffer {

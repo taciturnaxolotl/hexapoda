@@ -1,13 +1,34 @@
 use std::{cmp::min, collections::hash_set::Entry, convert::identity, fs::File, io::Write, iter, mem::{replace, swap}};
 use ratatui::{style::Stylize, text::Span};
-
 use crate::{BYTES_OF_PADDING, BYTES_PER_LINE, LINES_OF_PADDING, app::WindowSize, buffer::{Buffer, Mode, PartialAction}, cursor::Cursor, edit_action::EditAction};
 
 #[derive(Clone, Copy)]
 pub enum Action {
+	App(AppAction),
+	Buffer(BufferAction),
+	Cursor(CursorAction),
+}
+
+// actions that act on the app as a whole, not just one buffer
+#[derive(Debug, Clone, Copy)]
+pub enum AppAction {
 	QuitIfSaved,
 	Quit,
 	
+	PreviousBuffer,
+	NextBuffer,
+	
+	Yank,
+}
+
+impl From<AppAction> for Action {
+	fn from(app_action: AppAction) -> Self {
+		Self::App(app_action)
+	}
+}
+
+#[derive(Clone, Copy)]
+pub enum BufferAction {
 	NormalMode,
 	SelectMode,
 	
@@ -15,21 +36,7 @@ pub enum Action {
 	View,
 	Replace,
 	Space,
-	
-	MoveByteUp,
-	MoveByteDown,
-	MoveByteLeft,
-	MoveByteRight,
-	
-	ExtendByteUp,
-	ExtendByteDown,
-	ExtendByteLeft,
-	ExtendByteRight,
-	
-	GotoLineStart,
-	GotoLineEnd,
-	GotoFileStart,
-	GotoFileEnd,
+	Repeat,
 	
 	ScrollDown,
 	ScrollUp,
@@ -40,19 +47,8 @@ pub enum Action {
 	PageDown,
 	PageUp,
 	
-	MoveNextWordStart,
-	MoveNextWordEnd,
-	MovePreviousWordStart,
-	
-	ExtendNextWordStart,
-	ExtendNextWordEnd,
-	ExtendPreviousWordStart,
-	
 	CollapseSelection,
 	FlipSelections,
-	
-	ExtendLineBelow,
-	ExtendLineAbove,
 	
 	Delete,
 	
@@ -60,9 +56,6 @@ pub enum Action {
 	Redo,
 	
 	Save,
-	
-	PreviousBuffer,
-	NextBuffer,
 	
 	CopySelectionOnNextLine,
 	
@@ -92,106 +85,105 @@ pub enum Action {
 	AlignViewTop,
 }
 
-// actions that act on the app as a whole, not just one buffer
-pub enum AppAction {
-	QuitIfSaved,
-	Quit,
+impl From<BufferAction> for Action {
+	fn from(buffer_action: BufferAction) -> Self {
+		Self::Buffer(buffer_action)
+	}
+}
+
+#[derive(Clone, Copy)]
+pub enum CursorAction {
+	MoveByteUp,
+	MoveByteDown,
+	MoveByteLeft,
+	MoveByteRight,
 	
-	PreviousBuffer,
-	NextBuffer,
+	ExtendByteUp,
+	ExtendByteDown,
+	ExtendByteLeft,
+	ExtendByteRight,
+	
+	GotoLineStart,
+	GotoLineEnd,
+	GotoFileStart,
+	GotoFileEnd,
+	
+	MoveNextWordStart,
+	MoveNextWordEnd,
+	MovePreviousWordStart,
+	
+	ExtendNextWordStart,
+	ExtendNextWordEnd,
+	ExtendPreviousWordStart,
+	
+	ExtendLineBelow,
+	ExtendLineAbove,
+}
+
+impl From<CursorAction> for Action {
+	fn from(cursor_action: CursorAction) -> Self {
+		Self::Cursor(cursor_action)
+	}
 }
 
 impl Buffer {
-	pub fn execute(&mut self, action: Action, window_size: WindowSize) -> Option<AppAction> {
+	pub fn execute(&mut self, action: BufferAction, window_size: WindowSize) {
 		match action {
-			Action::QuitIfSaved => return Some(AppAction::QuitIfSaved),
-			Action::Quit => return Some(AppAction::Quit),
+			BufferAction::NormalMode => self.normal_mode(),
+			BufferAction::SelectMode => self.select_mode(),
 			
-			Action::NormalMode => self.normal_mode(),
-			Action::SelectMode => self.select_mode(),
+			BufferAction::Goto => self.goto(),
+			BufferAction::View => self.view(),
+			BufferAction::Replace => self.replace(),
+			BufferAction::Space => self.space(),
+			BufferAction::Repeat => self.repeat(),
 			
-			Action::Goto => self.goto(),
-			Action::View => self.view(),
-			Action::Replace => self.replace(),
-			Action::Space => self.space(),
+			BufferAction::ScrollDown => self.scroll_down(window_size),
+			BufferAction::ScrollUp => self.scroll_up(window_size),
 			
-			Action::MoveByteUp => self.move_byte_up(window_size),
-			Action::MoveByteDown => self.move_byte_down(window_size),
-			Action::MoveByteLeft => self.move_byte_left(window_size),
-			Action::MoveByteRight => self.move_byte_right(window_size),
+			BufferAction::PageCursorHalfDown => self.page_cursor_half_down(window_size),
+			BufferAction::PageCursorHalfUp => self.page_cursor_half_up(window_size),
 			
-			Action::ExtendByteUp => self.extend_byte_up(window_size),
-			Action::ExtendByteDown => self.extend_byte_down(window_size),
-			Action::ExtendByteLeft => self.extend_byte_left(window_size),
-			Action::ExtendByteRight => self.extend_byte_right(window_size),
+			BufferAction::PageDown => self.page_down(window_size),
+			BufferAction::PageUp => self.page_up(window_size),
 			
-			Action::GotoLineStart => self.goto_line_start(),
-			Action::GotoLineEnd => self.goto_line_end(),
-			Action::GotoFileStart => self.goto_file_start(window_size),
-			Action::GotoFileEnd => self.goto_file_end(window_size),
+			BufferAction::CollapseSelection => self.collapse_selection(),
+			BufferAction::FlipSelections => self.flip_selection(),
 			
-			Action::ScrollDown => self.scroll_down(window_size),
-			Action::ScrollUp => self.scroll_up(window_size),
+			BufferAction::Delete => self.delete(window_size),
 			
-			Action::PageCursorHalfDown => self.page_cursor_half_down(window_size),
-			Action::PageCursorHalfUp => self.page_cursor_half_up(window_size),
+			BufferAction::Undo => self.undo(window_size),
+			BufferAction::Redo => self.redo(window_size),
 			
-			Action::PageDown => self.page_down(window_size),
-			Action::PageUp => self.page_up(window_size),
+			BufferAction::Save => self.save(),
 			
-			Action::MoveNextWordStart => self.move_next_word_start(window_size),
-			Action::MoveNextWordEnd => self.move_next_word_end(window_size),
-			Action::MovePreviousWordStart => self.move_previous_word_start(window_size),
+			BufferAction::CopySelectionOnNextLine => self.copy_selection_on_next_line(),
 			
-			Action::ExtendNextWordStart => self.extend_next_word_start(window_size),
-			Action::ExtendNextWordEnd => self.extend_next_word_end(window_size),
-			Action::ExtendPreviousWordStart => self.extend_previous_word_start(window_size),
+			BufferAction::RotateSelectionsBackward => self.rotate_selections_backward(),
+			BufferAction::RotateSelectionsForward => self.rotate_selections_forward(),
 			
-			Action::CollapseSelection => self.collapse_selection(),
-			Action::FlipSelections => self.flip_selection(),
+			BufferAction::KeepPrimarySelection => self.keep_primary_selection(),
+			BufferAction::RemovePrimarySelection => self.remove_primary_selection(),
 			
-			Action::ExtendLineBelow => self.extend_line_below(window_size),
-			Action::ExtendLineAbove => self.extend_line_above(window_size),
+			BufferAction::SplitSelectionsInto1s => self.split_selections_into_size(1),
+			BufferAction::SplitSelectionsInto2s => self.split_selections_into_size(2),
+			BufferAction::SplitSelectionsInto3s => self.split_selections_into_size(3),
+			BufferAction::SplitSelectionsInto4s => self.split_selections_into_size(4),
+			BufferAction::SplitSelectionsInto5s => self.split_selections_into_size(5),
+			BufferAction::SplitSelectionsInto6s => self.split_selections_into_size(6),
+			BufferAction::SplitSelectionsInto7s => self.split_selections_into_size(7),
+			BufferAction::SplitSelectionsInto8s => self.split_selections_into_size(8),
+			BufferAction::SplitSelectionsInto9s => self.split_selections_into_size(9),
 			
-			Action::Delete => self.delete(window_size),
+			BufferAction::JumpToSelectedOffset => self.jump_to_selected_offset(window_size),
+			BufferAction::JumpToSelectedOffsetRelativeToMark => self.jump_to_selected_offset_relative_to_mark(window_size),
 			
-			Action::Undo => self.undo(window_size),
-			Action::Redo => self.redo(window_size),
+			BufferAction::ToggleMark => self.toggle_mark(),
 			
-			Action::Save => self.save(),
-			
-			Action::PreviousBuffer => return Some(AppAction::PreviousBuffer),
-			Action::NextBuffer => return Some(AppAction::NextBuffer),
-			
-			Action::CopySelectionOnNextLine => self.copy_selection_on_next_line(),
-			
-			Action::RotateSelectionsBackward => self.rotate_selections_backward(),
-			Action::RotateSelectionsForward => self.rotate_selections_forward(),
-			
-			Action::KeepPrimarySelection => self.keep_primary_selection(),
-			Action::RemovePrimarySelection => self.remove_primary_selection(),
-			
-			Action::SplitSelectionsInto1s => self.split_selections_into_size(1),
-			Action::SplitSelectionsInto2s => self.split_selections_into_size(2),
-			Action::SplitSelectionsInto3s => self.split_selections_into_size(3),
-			Action::SplitSelectionsInto4s => self.split_selections_into_size(4),
-			Action::SplitSelectionsInto5s => self.split_selections_into_size(5),
-			Action::SplitSelectionsInto6s => self.split_selections_into_size(6),
-			Action::SplitSelectionsInto7s => self.split_selections_into_size(7),
-			Action::SplitSelectionsInto8s => self.split_selections_into_size(8),
-			Action::SplitSelectionsInto9s => self.split_selections_into_size(9),
-			
-			Action::JumpToSelectedOffset => self.jump_to_selected_offset(window_size),
-			Action::JumpToSelectedOffsetRelativeToMark => self.jump_to_selected_offset_relative_to_mark(window_size),
-			
-			Action::ToggleMark => self.toggle_mark(),
-			
-			Action::AlignViewCenter => self.align_view_center(window_size),
-			Action::AlignViewBottom => self.align_view_bottom(window_size),
-			Action::AlignViewTop => self.align_view_top(),
+			BufferAction::AlignViewCenter => self.align_view_center(window_size),
+			BufferAction::AlignViewBottom => self.align_view_bottom(window_size),
+			BufferAction::AlignViewTop => self.align_view_top(),
 		}
-		
-		None
 	}
 	
 	const fn normal_mode(&mut self) {
@@ -220,79 +212,8 @@ impl Buffer {
 		self.partial_action = Some(PartialAction::Space);
 	}
 	
-	fn change_all_cursors(&mut self, transform: impl Fn(&mut Cursor)) {
-		transform(&mut self.primary_cursor);
-		
-		for cursor in &mut self.cursors {
-			transform(cursor);
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
-	}
-	
-	fn move_byte_up(&mut self, window_size: WindowSize) {
-		self.change_all_cursors(Cursor::move_byte_up);
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn move_byte_down(&mut self, window_size: WindowSize) {
-		let max_contents_index = self.max_contents_index();
-		self.change_all_cursors(|cursor| cursor.move_byte_down(max_contents_index));
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn move_byte_left(&mut self, window_size: WindowSize) {
-		self.change_all_cursors(Cursor::move_byte_left);
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn move_byte_right(&mut self, window_size: WindowSize) {
-		let max_contents_index = self.max_contents_index();
-		self.change_all_cursors(|cursor| cursor.move_byte_right(max_contents_index));
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn extend_byte_up(&mut self, window_size: WindowSize) {
-		self.change_all_cursors(Cursor::extend_byte_up);
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn extend_byte_down(&mut self, window_size: WindowSize) {
-		let max_contents_index = self.max_contents_index();
-		self.change_all_cursors(|cursor| cursor.extend_byte_down(max_contents_index));
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn extend_byte_left(&mut self, window_size: WindowSize) {
-		self.change_all_cursors(Cursor::extend_byte_left);
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn extend_byte_right(&mut self, window_size: WindowSize) {
-		let max_contents_index = self.max_contents_index();
-		self.change_all_cursors(|cursor| cursor.extend_byte_right(max_contents_index));
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn goto_line_start(&mut self) {
-		self.change_all_cursors(Cursor::goto_line_start);
-	}
-	
-	fn goto_line_end(&mut self) {
-		let max_contents_index = self.max_contents_index();
-		self.change_all_cursors(|cursor| cursor.goto_line_end(max_contents_index));
-	}
-	
-	fn goto_file_start(&mut self, window_size: WindowSize) {
-		self.change_all_cursors(Cursor::goto_file_start);
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn goto_file_end(&mut self, window_size: WindowSize) {
-		let max_contents_index = self.max_contents_index();
-		self.change_all_cursors(|cursor| cursor.goto_file_end(max_contents_index));
-		self.clamp_screen_to_primary_cursor(window_size);
+	const fn repeat(&mut self) {
+		self.partial_action = Some(PartialAction::Repeat);
 	}
 	
 	pub fn scroll_down(&mut self, window_size: WindowSize) {
@@ -419,40 +340,6 @@ impl Buffer {
 		self.combine_cursors_if_overlapping();
 	}
 	
-	fn move_next_word_start(&mut self, window_size: WindowSize) {
-		let max_contents_index = self.max_contents_index();
-		self.change_all_cursors(|cursor| cursor.move_next_word_start(max_contents_index));
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn move_next_word_end(&mut self, window_size: WindowSize) {
-		let max_contents_index = self.max_contents_index();
-		self.change_all_cursors(|cursor| cursor.move_next_word_end(max_contents_index));
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn move_previous_word_start(&mut self, window_size: WindowSize) {
-		self.change_all_cursors(Cursor::move_previous_word_start);
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn extend_next_word_start(&mut self, window_size: WindowSize) {
-		let max_contents_index = self.max_contents_index();
-		self.change_all_cursors(|cursor| cursor.extend_next_word_start(max_contents_index));
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn extend_next_word_end(&mut self, window_size: WindowSize) {
-		let max_contents_index = self.max_contents_index();
-		self.change_all_cursors(|cursor| cursor.extend_next_word_end(max_contents_index));
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn extend_previous_word_start(&mut self, window_size: WindowSize) {
-		self.change_all_cursors(Cursor::extend_previous_word_start);
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
 	fn collapse_selection(&mut self) {
 		self.primary_cursor.collapse();
 		
@@ -467,18 +354,6 @@ impl Buffer {
 		for cursor in &mut self.cursors {
 			cursor.flip();
 		}
-	}
-	
-	fn extend_line_below(&mut self, window_size: WindowSize) {
-		let max_contents_index = self.max_contents_index();
-		self.change_all_cursors(|cursor| cursor.extend_line_below(max_contents_index));
-		self.clamp_screen_to_primary_cursor(window_size);
-	}
-	
-	fn extend_line_above(&mut self, window_size: WindowSize) {
-		let max_contents_index = self.max_contents_index();
-		self.change_all_cursors(|cursor| cursor.extend_line_above(max_contents_index));
-		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn delete(&mut self, window_size: WindowSize) {
@@ -658,7 +533,7 @@ impl Buffer {
 		if !iter::once(&self.primary_cursor)
 			.chain(&self.cursors)
 			.all(|cursor| {
-				bytes_as_nat(&self.contents[cursor.range()])
+				bytes_to_nat(&self.contents[cursor.range()])
 					.is_some_and(|offset| offset < self.contents.len())
 			})
 		{
@@ -675,12 +550,12 @@ impl Buffer {
 		}
 		
 		self.primary_cursor = Cursor::at(
-			bytes_as_nat(&self.contents[self.primary_cursor.range()]).unwrap()
+			bytes_to_nat(&self.contents[self.primary_cursor.range()]).unwrap()
 		);
 		
 		for cursor in &mut self.cursors {
 			*cursor = Cursor::at(
-				bytes_as_nat(&self.contents[cursor.range()]).unwrap()
+				bytes_to_nat(&self.contents[cursor.range()]).unwrap()
 			);
 		}
 		
@@ -697,7 +572,7 @@ impl Buffer {
 		if !iter::once(&self.primary_cursor)
 			.chain(&self.cursors)
 			.all(|cursor| {
-				bytes_as_nat(&self.contents[cursor.range()])
+				bytes_to_nat(&self.contents[cursor.range()])
 					.map(|offset| mark_before(cursor.lower_bound(), &sorted_marks) + offset)
 					.is_some_and(|offset| offset < self.contents.len())
 			})
@@ -715,7 +590,7 @@ impl Buffer {
 		}
 		
 		self.primary_cursor = Cursor::at(
-			bytes_as_nat(&self.contents[self.primary_cursor.range()])
+			bytes_to_nat(&self.contents[self.primary_cursor.range()])
 				.map(|offset| {
 					mark_before(self.primary_cursor.lower_bound(), &sorted_marks) + offset
 				})
@@ -724,7 +599,7 @@ impl Buffer {
 		
 		for cursor in &mut self.cursors {
 			*cursor = Cursor::at(
-				bytes_as_nat(&self.contents[cursor.range()])
+				bytes_to_nat(&self.contents[cursor.range()])
 				.map(|offset| {
 					mark_before(cursor.lower_bound(), &sorted_marks) + offset
 				})
@@ -789,7 +664,7 @@ impl Buffer {
 	}
 }
 
-fn bytes_as_nat(bytes: &[u8]) -> Option<usize> {
+pub fn bytes_to_nat(bytes: &[u8]) -> Option<usize> {
 	bytes
 		.iter()
 		.rev() // little-endian

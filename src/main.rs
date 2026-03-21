@@ -26,6 +26,10 @@ const LINES_OF_PADDING: usize = 5;
 const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 
 // TODO:
+// - extend to mark (tm?)
+//   - t0 can be to next null
+//   - tf can be to next FF
+// - inspect selection
 // - resizing can move the cursor off the screen
 // - tab bar overflow
 // - search
@@ -46,9 +50,6 @@ const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 // - y/p
 // - [/] to cycle view offset?
 // - gj jump to entered offset
-// - repeat X times (dec and hex)
-//   - from register??
-// - extend to mark (tm?)
 
 // future directions
 // - 'views' for bytes (i8/16/etc u8/16/etc 20.12/8.4/etc)
@@ -78,6 +79,9 @@ fn main() {
 	ratatui::restore();
 	
 	// dbg!(app.edit_history);
+	
+	// dbg!(app.primary_cursor_register);
+	// dbg!(app.other_cursor_registers);
 	
 	for log in app.logs {
 		println!("{log}");

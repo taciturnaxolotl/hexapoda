@@ -1,6 +1,5 @@
 use std::{cmp::{max, min}, mem::swap, ops::RangeInclusive};
-
-use crate::BYTES_PER_LINE;
+use crate::{BYTES_PER_LINE, action::CursorAction};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Cursor {
@@ -74,6 +73,40 @@ impl Cursor {
 		} else {
 			self.head = max(self.head, other.head);
 			self.tail = min(self.tail, other.tail);
+		}
+	}
+	
+	pub fn execute(
+		&mut self,
+		action: CursorAction,
+		max_contents_index: usize
+	) {
+		match action {
+			CursorAction::MoveByteUp => self.move_byte_up(),
+			CursorAction::MoveByteDown => self.move_byte_down(max_contents_index),
+			CursorAction::MoveByteLeft => self.move_byte_left(),
+			CursorAction::MoveByteRight => self.move_byte_right(max_contents_index),
+			
+			CursorAction::ExtendByteUp => self.extend_byte_up(),
+			CursorAction::ExtendByteDown => self.extend_byte_down(max_contents_index),
+			CursorAction::ExtendByteLeft => self.extend_byte_left(),
+			CursorAction::ExtendByteRight => self.extend_byte_right(max_contents_index),
+			
+			CursorAction::GotoLineStart => self.goto_line_start(),
+			CursorAction::GotoLineEnd => self.goto_line_end(max_contents_index),
+			CursorAction::GotoFileStart => self.goto_file_start(),
+			CursorAction::GotoFileEnd => self.goto_file_end(max_contents_index),
+			
+			CursorAction::MoveNextWordStart => self.move_next_word_start(max_contents_index),
+			CursorAction::MoveNextWordEnd => self.move_next_word_end(max_contents_index),
+			CursorAction::MovePreviousWordStart => self.move_previous_word_start(),
+			
+			CursorAction::ExtendNextWordStart => self.extend_next_word_start(max_contents_index),
+			CursorAction::ExtendNextWordEnd => self.extend_next_word_end(max_contents_index),
+			CursorAction::ExtendPreviousWordStart => self.extend_previous_word_start(),
+			
+			CursorAction::ExtendLineBelow => self.extend_line_below(max_contents_index),
+			CursorAction::ExtendLineAbove => self.extend_line_above(max_contents_index),
 		}
 	}
 	
