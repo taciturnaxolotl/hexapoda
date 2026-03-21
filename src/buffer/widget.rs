@@ -221,18 +221,25 @@ mod hex {
 			
 			let span = SPAN_FOR_BYTE[byte as usize].clone();
 			
-			let head_color = match self.mode {
-				Mode::Select => Color::Yellow,
-				_ => Color::Gray
-			};
-			
-			match iter::once(&self.primary_cursor)
-				.chain(&self.cursors)
-				.find_map(|cursor| cursor.contains(address))
-			{
-				Some(InCursor::Head) => span.bg(head_color),
-				Some(InCursor::Rest) => span.bg(Color::select_grey()),
-				None => span,
+			if let Some(place_in_cursor) = self.primary_cursor.contains(address) {
+				let head_color = match self.mode {
+					Mode::Select => Color::Yellow,
+					_ => Color::Gray
+				};
+				
+				match place_in_cursor {
+					InCursor::Head => span.bg(head_color),
+					InCursor::Rest => span.bg(Color::select_grey()),
+				}
+			} else {
+				match self.cursors
+					.iter()
+					.find_map(|cursor| cursor.contains(address))
+				{
+					Some(InCursor::Head) => span.on_gray(),
+					Some(InCursor::Rest) => span.bg(Color::select_grey()),
+					None => span,
+				}
 			}
 		}
 		

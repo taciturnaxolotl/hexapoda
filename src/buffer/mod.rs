@@ -171,11 +171,9 @@ impl Buffer {
 	}
 	
 	pub fn combine_cursors_if_overlapping(&mut self) {
-		if self.cursors.is_empty() { return; }
-		
 		let mut index = 0;
 		
-		while index < self.cursors.len() - 1 {
+		while !self.cursors.is_empty() && index < self.cursors.len() - 1 {
 			while index < self.cursors.len() - 1 &&
 				self.cursors[index].range().is_overlapping(
 					&self.cursors[index + 1].range())

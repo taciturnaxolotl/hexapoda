@@ -141,6 +141,13 @@ impl Default for Config {
 					
 					("C-j".try_into().unwrap(), Action::PreviousBuffer),
 					("C-l".try_into().unwrap(), Action::NextBuffer),
+					
+					("C".try_into().unwrap(), Action::CopySelectionOnNextLine),
+					
+					("(".try_into().unwrap(), Action::RotateSelectionsBackward),
+					(")".try_into().unwrap(), Action::RotateSelectionsForward),
+					
+					(",".try_into().unwrap(), Action::KeepPrimarySelection),
 				].into()),
 				(Some(PartialAction::Goto), [
 					("j".try_into().unwrap(), Action::GotoLineStart),
@@ -191,6 +198,13 @@ impl Default for Config {
 					
 					("u".try_into().unwrap(), Action::Undo),
 					("U".try_into().unwrap(), Action::Redo),
+					
+					("C".try_into().unwrap(), Action::CopySelectionOnNextLine),
+					
+					("(".try_into().unwrap(), Action::RotateSelectionsBackward),
+					(")".try_into().unwrap(), Action::RotateSelectionsForward),
+					
+					(",".try_into().unwrap(), Action::KeepPrimarySelection),
 				].into()),
 				(Some(PartialAction::Space), [
 					("w".try_into().unwrap(), Action::Save),

@@ -1,5 +1,5 @@
-use std::{cmp::min, fs::File, io::Write, mem::replace};
-use crate::{BYTES_PER_LINE, app::WindowSize, buffer::{Buffer, Mode, PartialAction}, edit_action::EditAction};
+use std::{cmp::min, convert::identity, fs::File, io::Write, iter, mem::{replace, swap}};
+use crate::{BYTES_PER_LINE, app::WindowSize, buffer::{Buffer, Mode, PartialAction}, cursor::Cursor, edit_action::EditAction};
 
 #[derive(Clone, Copy)]
 pub enum Action {
@@ -60,6 +60,13 @@ pub enum Action {
 	
 	PreviousBuffer,
 	NextBuffer,
+	
+	CopySelectionOnNextLine,
+	
+	RotateSelectionsBackward,
+	RotateSelectionsForward,
+	
+	KeepPrimarySelection,
 }
 
 // actions that act on the app as a whole, not just one buffer
@@ -131,6 +138,13 @@ impl Buffer {
 			
 			Action::PreviousBuffer => return Some(AppAction::PreviousBuffer),
 			Action::NextBuffer => return Some(AppAction::NextBuffer),
+			
+			Action::CopySelectionOnNextLine => self.copy_selection_on_next_line(),
+			
+			Action::RotateSelectionsBackward => self.rotate_selections_backward(),
+			Action::RotateSelectionsForward => self.rotate_selections_forward(),
+			
+			Action::KeepPrimarySelection => self.keep_primary_selection(),
 		}
 		
 		None
@@ -595,6 +609,70 @@ impl Buffer {
 		self.last_saved_at = Some(
 			self.time_traveling.unwrap_or(self.edit_history.len())
 		);
+	}
+	
+	fn copy_selection_on_next_line(&mut self) {
+		let new_cursors: Vec<Cursor> = iter::once(&self.primary_cursor)
+			.chain(&self.cursors)
+			.filter_map(|cursor| {
+				let number_of_lines_tall = (cursor.upper_bound() - cursor.lower_bound()) / BYTES_PER_LINE;
+				let offset_to_add = (number_of_lines_tall + 1) * BYTES_PER_LINE;
+				
+				if cursor.lower_bound() + offset_to_add < self.contents.len() {
+					Some(
+						Cursor {
+							head: min(cursor.head + offset_to_add, self.max_contents_index()),
+							tail: min(cursor.tail + offset_to_add, self.max_contents_index())
+						}
+					)
+				} else {
+					None
+				}
+			})
+			.collect();
+		
+		self.cursors.extend(new_cursors);
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+	}
+	
+	fn rotate_selections_backward(&mut self) {
+		if self.cursors.is_empty() { return; }
+		
+		let next_cursor_index = self.cursors
+			.binary_search_by_key(&self.primary_cursor.head, |cursor| cursor.head)
+			.unwrap_or_else(identity);
+		
+		
+		if next_cursor_index == 0 {
+			let cursor_count = self.cursors.len();
+			swap(&mut self.primary_cursor, &mut self.cursors[cursor_count - 1]);
+			
+			self.cursors.sort_by_key(|cursor| cursor.head);
+		} else {
+			swap(&mut self.primary_cursor, &mut self.cursors[next_cursor_index - 1]);
+		}
+	}
+	
+	fn rotate_selections_forward(&mut self) {
+		if self.cursors.is_empty() { return; }
+		
+		let next_cursor_index = self.cursors
+			.binary_search_by_key(&self.primary_cursor.head, |cursor| cursor.head)
+			.unwrap_or_else(identity);
+		
+		if next_cursor_index == self.cursors.len() {
+			swap(&mut self.primary_cursor, &mut self.cursors[0]);
+			
+			self.cursors.sort_by_key(|cursor| cursor.head);
+		} else {
+			swap(&mut self.primary_cursor, &mut self.cursors[next_cursor_index]);
+		}
+	}
+	
+	fn keep_primary_selection(&mut self) {
+		self.cursors.clear();
 	}
 }
 
