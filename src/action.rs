@@ -47,6 +47,7 @@ pub enum Action {
 	ExtendPreviousWordStart,
 	
 	CollapseSelection,
+	FlipSelections,
 	
 	ExtendLineBelow,
 	ExtendLineAbove,
@@ -126,6 +127,7 @@ impl Buffer {
 			Action::ExtendPreviousWordStart => self.extend_previous_word_start(window_size),
 			
 			Action::CollapseSelection => self.collapse_selection(),
+			Action::FlipSelections => self.flip_selection(),
 			
 			Action::ExtendLineBelow => self.extend_line_below(window_size),
 			Action::ExtendLineAbove => self.extend_line_above(window_size),
@@ -391,6 +393,14 @@ impl Buffer {
 		}
 	}
 	
+	fn flip_selection(&mut self) {
+		self.primary_cursor.flip();
+		
+		for cursor in &mut self.cursors {
+			cursor.flip();
+		}
+	}
+	
 	fn extend_line_below(&mut self, window_size: WindowSize) {
 		let max_contents_index = self.max_contents_index();
 		self.change_all_cursors(|cursor| cursor.extend_line_below(max_contents_index));
@@ -495,6 +505,8 @@ impl Buffer {
 		self.cursors.sort_by_key(|cursor| cursor.head);
 		
 		self.combine_cursors_if_overlapping();
+		
+		self.rotate_selections_forward();
 	}
 	
 	fn rotate_selections_backward(&mut self) {
