@@ -5,6 +5,7 @@
 #![feature(hash_set_entry)]
 
 use app::App;
+use crossterm::{QueueableCommand, event::{DisableMouseCapture, EnableMouseCapture}};
 
 mod app;
 mod buffer;
@@ -22,9 +23,9 @@ const BYTES_PER_CHUNK: usize = 4;
 const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 
 // TODO:
-// - m mark offset
 // - search
 // - s/A-k/A-K
+// - C-a/C-x
 // - modifications
 //   - insert/append
 //     - mode
@@ -56,15 +57,17 @@ fn main() {
 	let mut app = App::new();
 	let mut terminal = ratatui::init();
 	crossterm::terminal::enable_raw_mode().unwrap();
+	terminal.backend_mut().queue(EnableMouseCapture).unwrap();
 	
 	while !app.should_quit {
 		terminal.draw(|frame| {
 			frame.render_widget(&app, frame.area());
 		}).unwrap();
 		
-		app.handle_events();
+		app.handle_events(&mut terminal);
 	}
 	
+	terminal.backend_mut().queue(DisableMouseCapture).unwrap();
 	crossterm::terminal::disable_raw_mode().unwrap();
 	ratatui::restore();
 	

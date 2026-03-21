@@ -1,7 +1,7 @@
 use std::{env, process::exit};
-use crossterm::{event::{self, Event, KeyCode, KeyEvent, KeyModifiers}, terminal::window_size};
-use ratatui::{style::Stylize, text::Span};
-use crate::{BYTES_PER_LINE, action::AppAction, buffer::Buffer, config::Config};
+use crossterm::{ExecutableCommand, event::{self, DisableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind}, terminal::window_size};
+use ratatui::{DefaultTerminal, style::Stylize, text::Span};
+use crate::{BYTES_PER_LINE, action::AppAction, buffer::Buffer, config::Config, cursor::Cursor};
 
 mod widget;
 
@@ -35,41 +35,43 @@ impl App {
 			exit(1);
 		}
 		
+		let window_size = WindowSize {
+			rows: window_size().unwrap().rows as usize,
+			covered_rows: if buffers.len() > 1 {
+				2 // status line and tab bar
+			} else {
+				1 // status line
+			},
+		};
+		
 		Self {
 			config: Config::default(),
 			
 			buffers,
 			current_buffer_index: 0,
 			
-			window_size: WindowSize {
-				rows: window_size().unwrap().rows as usize,
-				// 1 because of the status line
-				covered_rows: 1,
-			},
+			window_size,
 			
 			should_quit: false,
 		}
 	}
 	
-	#[allow(clippy::too_many_lines)]
-	pub fn handle_events(&mut self) {
-		#[allow(clippy::collapsible_match)]
+	pub fn handle_events(&mut self, terminal: &mut DefaultTerminal) {
 		match event::read().unwrap() {
 			Event::Resize(_, height) => {
 				self.window_size.rows = height as usize;
 			}
-			Event::Key(key_event) => self.handle_key(key_event),
-			// Event::Mouse(mouse_event) => {
-			// 	mouse_event.kind
-			// },
+			Event::Key(key_event) => self.handle_key(key_event, terminal),
+			Event::Mouse(mouse_event) => self.handle_mouse(mouse_event),
 			_ => {}
 		}
 	}
 	
-	fn handle_key(&mut self, key_event: KeyEvent) {
+	fn handle_key(&mut self, key_event: KeyEvent, terminal: &mut DefaultTerminal) {
 		if key_event.modifiers == KeyModifiers::CONTROL &&
 		   key_event.code == KeyCode::Char('c')
 		{
+			terminal.backend_mut().execute(DisableMouseCapture).unwrap();
 			crossterm::terminal::disable_raw_mode().unwrap();
 			ratatui::restore();
 			exit(130);
@@ -89,6 +91,62 @@ impl App {
 				AppAction::PreviousBuffer => self.previous_buffer(),
 				AppAction::NextBuffer => self.next_buffer(),
 			}
+		}
+	}
+	
+	fn handle_mouse(&mut self, mouse_event: MouseEvent) {
+		let tab_bar_rows = usize::from(self.buffers.len() > 1);
+		let current_buffer = &mut self.buffers[self.current_buffer_index];
+		
+		match mouse_event.kind {
+			MouseEventKind::Down(_) => {
+				let byte_column = match mouse_event.column {
+					10..=11 => Some(0),
+					13..=14 => Some(1),
+					16..=17 => Some(2),
+					19..=20 => Some(3),
+					
+					23..=24 => Some(4),
+					26..=27 => Some(5),
+					29..=30 => Some(6),
+					32..=33 => Some(7),
+					
+					36..=37 => Some(8),
+					39..=40 => Some(9),
+					42..=43 => Some(10),
+					45..=46 => Some(11),
+					
+					49..=50 => Some(12),
+					52..=53 => Some(13),
+					55..=56 => Some(14),
+					58..=59 => Some(15),
+					
+					_ => None,
+				};
+				
+				
+				if let Some(byte_column) = byte_column &&
+					mouse_event.row as usize - tab_bar_rows < self.window_size.hex_rows()
+				{
+					current_buffer.primary_cursor = Cursor::at(
+						current_buffer.scroll_position +
+						(mouse_event.row as usize - tab_bar_rows) * BYTES_PER_LINE +
+						byte_column
+					);
+					current_buffer.cursors.clear();
+				}
+			},
+			MouseEventKind::ScrollDown => {
+				for _ in 0..3 {
+					current_buffer.scroll_down(self.window_size);
+				}
+			},
+			MouseEventKind::ScrollUp => {
+				for _ in 0..3 {
+					current_buffer.scroll_up(self.window_size);
+				}
+			},
+			_ => (),
 		}
 	}
 	

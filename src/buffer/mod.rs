@@ -88,7 +88,7 @@ impl Buffer {
 			primary_cursor: Cursor::default(),
 			cursors: Vec::new(),
 			
-			marks: HashSet::from([0, 4, 12, 15, 16, 17]),
+			marks: HashSet::new(),
 			
 			mode: Mode::Normal,
 			partial_action: None,

@@ -285,7 +285,7 @@ impl Buffer {
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
-	fn scroll_down(&mut self, window_size: WindowSize) {
+	pub fn scroll_down(&mut self, window_size: WindowSize) {
 		if self.contents.len() <= 5 * BYTES_PER_LINE { return; }
 		
 		self.scroll_position = min(
@@ -297,7 +297,7 @@ impl Buffer {
 		self.combine_cursors_if_overlapping();
 	}
 	
-	fn scroll_up(&mut self, window_size: WindowSize) {
+	pub fn scroll_up(&mut self, window_size: WindowSize) {
 		self.scroll_position = self.scroll_position.saturating_sub(BYTES_PER_LINE);
 		self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
 		self.combine_cursors_if_overlapping();
