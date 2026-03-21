@@ -176,158 +176,78 @@ impl Buffer {
 		self.partial_action = Some(PartialAction::Space);
 	}
 	
-	// TODO: all these move/extend-cursor operations could be DRYed together
-	fn move_byte_up(&mut self, window_size: WindowSize) {
-		self.primary_cursor.move_byte_up();
+	fn change_all_cursors(&mut self, transform: impl Fn(&mut Cursor)) {
+		transform(&mut self.primary_cursor);
 		
 		for cursor in &mut self.cursors {
-			cursor.move_byte_up();
+			transform(cursor);
 		}
 		self.cursors.sort_by_key(|cursor| cursor.head);
 		
 		self.combine_cursors_if_overlapping();
+	}
+	
+	fn move_byte_up(&mut self, window_size: WindowSize) {
+		self.change_all_cursors(Cursor::move_byte_up);
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn move_byte_down(&mut self, window_size: WindowSize) {
 		let max_contents_index = self.max_contents_index();
-		
-		self.primary_cursor.move_byte_down(max_contents_index);
-		
-		for cursor in &mut self.cursors {
-			cursor.move_byte_down(max_contents_index);
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(|cursor| cursor.move_byte_down(max_contents_index));
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn move_byte_left(&mut self, window_size: WindowSize) {
-		self.primary_cursor.move_byte_left();
-		
-		for cursor in &mut self.cursors {
-			cursor.move_byte_left();
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(Cursor::move_byte_left);
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn move_byte_right(&mut self, window_size: WindowSize) {
 		let max_contents_index = self.max_contents_index();
-		
-		self.primary_cursor.move_byte_right(max_contents_index);
-		
-		for cursor in &mut self.cursors {
-			cursor.move_byte_right(max_contents_index);
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(|cursor| cursor.move_byte_right(max_contents_index));
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn extend_byte_up(&mut self, window_size: WindowSize) {
-		self.primary_cursor.extend_byte_up();
-		
-		for cursor in &mut self.cursors {
-			cursor.extend_byte_up();
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(Cursor::extend_byte_up);
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn extend_byte_down(&mut self, window_size: WindowSize) {
 		let max_contents_index = self.max_contents_index();
-		
-		self.primary_cursor.extend_byte_down(max_contents_index);
-		
-		for cursor in &mut self.cursors {
-			cursor.extend_byte_down(max_contents_index);
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(|cursor| cursor.extend_byte_down(max_contents_index));
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn extend_byte_left(&mut self, window_size: WindowSize) {
-		self.primary_cursor.extend_byte_left();
-		
-		for cursor in &mut self.cursors {
-			cursor.extend_byte_left();
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(Cursor::extend_byte_left);
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn extend_byte_right(&mut self, window_size: WindowSize) {
 		let max_contents_index = self.max_contents_index();
-		
-		self.primary_cursor.extend_byte_right(max_contents_index);
-		
-		for cursor in &mut self.cursors {
-			cursor.extend_byte_right(max_contents_index);
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(|cursor| cursor.extend_byte_right(max_contents_index));
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn goto_line_start(&mut self) {
-		self.primary_cursor.goto_line_start();
-		
-		for cursor in &mut self.cursors {
-			cursor.goto_line_start();
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(Cursor::goto_line_start);
 	}
 	
 	fn goto_line_end(&mut self) {
 		let max_contents_index = self.max_contents_index();
-		
-		self.primary_cursor.goto_line_end(max_contents_index);
-		
-		for cursor in &mut self.cursors {
-			cursor.goto_line_end(max_contents_index);
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(|cursor| cursor.goto_line_end(max_contents_index));
 	}
 	
 	fn goto_file_start(&mut self, window_size: WindowSize) {
-		self.primary_cursor.goto_file_start();
-		
-		for cursor in &mut self.cursors {
-			cursor.goto_file_start();
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(Cursor::goto_file_start);
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn goto_file_end(&mut self, window_size: WindowSize) {
 		let max_contents_index = self.max_contents_index();
-		
-		self.primary_cursor.goto_file_end(max_contents_index);
-		
-		for cursor in &mut self.cursors {
-			cursor.goto_file_end(max_contents_index);
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(|cursor| cursor.goto_file_end(max_contents_index));
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
@@ -429,81 +349,35 @@ impl Buffer {
 	
 	fn move_next_word_start(&mut self, window_size: WindowSize) {
 		let max_contents_index = self.max_contents_index();
-		
-		self.primary_cursor.move_to_next_word(max_contents_index);
-		
-		for cursor in &mut self.cursors {
-			cursor.move_to_next_word(max_contents_index);
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(|cursor| cursor.move_next_word_start(max_contents_index));
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn move_next_word_end(&mut self, window_size: WindowSize) {
 		let max_contents_index = self.max_contents_index();
-		
-		self.primary_cursor.move_to_next_end(max_contents_index);
-		
-		for cursor in &mut self.cursors {
-			cursor.move_to_next_end(max_contents_index);
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(|cursor| cursor.move_next_word_end(max_contents_index));
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn move_previous_word_start(&mut self, window_size: WindowSize) {
-		self.primary_cursor.move_to_previous_beginning();
-		
-		for cursor in &mut self.cursors {
-			cursor.move_to_previous_beginning();
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(Cursor::move_previous_word_start);
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn extend_next_word_start(&mut self, window_size: WindowSize) {
 		let max_contents_index = self.max_contents_index();
-		
-		self.primary_cursor.extend_to_next_word(max_contents_index);
-		
-		for cursor in &mut self.cursors {
-			cursor.extend_to_next_word(max_contents_index);
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(|cursor| cursor.extend_next_word_start(max_contents_index));
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn extend_next_word_end(&mut self, window_size: WindowSize) {
 		let max_contents_index = self.max_contents_index();
-		
-		self.primary_cursor.extend_to_next_end(max_contents_index);
-		
-		for cursor in &mut self.cursors {
-			cursor.extend_to_next_end(max_contents_index);
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(|cursor| cursor.extend_next_word_end(max_contents_index));
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn extend_previous_word_start(&mut self, window_size: WindowSize) {
-		self.primary_cursor.extend_to_previous_beginning();
-		
-		for cursor in &mut self.cursors {
-			cursor.extend_to_previous_beginning();
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(Cursor::extend_previous_word_start);
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
@@ -517,29 +391,13 @@ impl Buffer {
 	
 	fn extend_line_below(&mut self, window_size: WindowSize) {
 		let max_contents_index = self.max_contents_index();
-		
-		self.primary_cursor.extend_line_below(max_contents_index);
-		
-		for cursor in &mut self.cursors {
-			cursor.extend_line_below(max_contents_index);
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(|cursor| cursor.extend_line_below(max_contents_index));
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn extend_line_above(&mut self, window_size: WindowSize) {
 		let max_contents_index = self.max_contents_index();
-		
-		self.primary_cursor.extend_line_above(max_contents_index);
-		
-		for cursor in &mut self.cursors {
-			cursor.extend_line_above(max_contents_index);
-		}
-		self.cursors.sort_by_key(|cursor| cursor.head);
-		
-		self.combine_cursors_if_overlapping();
+		self.change_all_cursors(|cursor| cursor.extend_line_above(max_contents_index));
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
