@@ -129,7 +129,8 @@ impl Buffer {
 								.map(|cursor| self.contents[cursor.range()].to_vec())
 								.collect(),
 							new_byte: partial_replace << 4 | nybble
-						}
+						},
+						window_size
 					);
 					self.partial_action = None;
 				} else {

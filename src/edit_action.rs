@@ -1,5 +1,5 @@
 use std::{cmp::min, convert::identity, iter};
-use crate::{buffer::Buffer, cursor::Cursor};
+use crate::{app::WindowSize, buffer::Buffer, cursor::Cursor};
 
 #[derive(Debug)]
 pub enum EditAction {
@@ -34,10 +34,10 @@ pub enum EditAction {
 }
 
 impl Buffer {
-	pub fn execute_and_add(&mut self, edit_action: EditAction) {
+	pub fn execute_and_add(&mut self, edit_action: EditAction, window_size: WindowSize) {
 		assert!(!matches!(edit_action, EditAction::Placeholder));
 		
-		self.execute_edit(&edit_action);
+		self.execute_edit(&edit_action, window_size);
 		
 		if let Some(date) = self.time_traveling {
 			self.edit_history.truncate(date);
@@ -51,44 +51,57 @@ impl Buffer {
 		self.edit_history.push(edit_action);
 	}
 	
-	pub fn execute_edit(&mut self, edit_action: &EditAction) {
+	pub fn execute_edit(&mut self, edit_action: &EditAction, window_size: WindowSize) {
 		match edit_action {
 			EditAction::Placeholder => unreachable!(),
-			EditAction::Delete { primary_cursor, cursors, .. } => self.delete_at(*primary_cursor, cursors),
+			EditAction::Delete { primary_cursor, cursors, .. } => {
+				self.delete_at(*primary_cursor, cursors, window_size);
+			},
 			EditAction::Replace {
 				primary_cursor, cursors, primary_old_data: _, old_data: _, new_byte
-			} => self.replace_at_with(*primary_cursor, cursors, *new_byte),
+			} => self.replace_at_with(*primary_cursor, cursors, *new_byte, window_size),
 		}
 	}
 	
-	pub fn undo_edit(&mut self, edit_action: &EditAction) {
+	pub fn undo_edit(&mut self, edit_action: &EditAction, window_size: WindowSize) {
 		match edit_action {
 			EditAction::Placeholder => unreachable!(),
 			EditAction::Delete {
 				primary_cursor, cursors, primary_old_data, old_data
-			} => self.undo_delete_at(*primary_cursor, cursors, primary_old_data, old_data),
+			} => self.undo_delete_at(
+				*primary_cursor,
+				cursors,
+				primary_old_data,
+				old_data,
+				window_size
+			),
 			EditAction::Replace {
 				primary_cursor, cursors, primary_old_data, old_data, ..
-			} => self.undo_replace_at_with(*primary_cursor, cursors, primary_old_data, old_data),
+			} => self.undo_replace_at_with(
+				*primary_cursor,
+				cursors,
+				primary_old_data,
+				old_data,
+				window_size
+			),
 		}
 	}
 	
 	fn delete_at(
 		&mut self,
 		primary_cursor: Cursor,
-		cursors: &[Cursor]
+		cursors: &[Cursor],
+		window_size: WindowSize
 	) {
 		let mut bytes_deleted_so_far = 0;
 		
 		for cursor in cursors_in_order(primary_cursor, cursors) {
-			let range = cursor.range();
-			
 			self.contents.drain(
-				(range.start() - bytes_deleted_so_far)..=(range.end() - bytes_deleted_so_far)
+				(cursor.lower_bound() - bytes_deleted_so_far)..=
+				(cursor.upper_bound() - bytes_deleted_so_far)
 			);
 			
-			// RangeInclusive<usize>::len() is unstable/nonexistant :/
-			bytes_deleted_so_far += range.end() - range.start() + 1;
+			bytes_deleted_so_far += cursor.len();
 		}
 		
 		self.primary_cursor.head = min(
@@ -103,6 +116,7 @@ impl Buffer {
 			.collect();
 		 
 		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn undo_delete_at(
@@ -110,7 +124,8 @@ impl Buffer {
 		primary_cursor: Cursor,
 		cursors: &[Cursor],
 		primary_old_data: &[u8],
-		old_data: &[Vec<u8>]
+		old_data: &[Vec<u8>],
+		window_size: WindowSize
 	) {
 		let primary_cursor_start = primary_cursor.lower_bound();
 		
@@ -130,13 +145,15 @@ impl Buffer {
 		
 		self.primary_cursor = primary_cursor;
 		self.cursors = cursors.to_vec();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn replace_at_with(
 		&mut self,
 		primary_cursor: Cursor,
 		cursors: &[Cursor],
-		new_byte: u8
+		new_byte: u8,
+		window_size: WindowSize
 	) {
 		self.contents[primary_cursor.range()].fill(new_byte);
 		
@@ -146,6 +163,7 @@ impl Buffer {
 		
 		self.primary_cursor = primary_cursor;
 		self.cursors = cursors.to_vec();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn undo_replace_at_with(
@@ -153,7 +171,8 @@ impl Buffer {
 		primary_cursor: Cursor,
 		cursors: &[Cursor],
 		primary_old_data: &[u8],
-		old_data: &[Vec<u8>]
+		old_data: &[Vec<u8>],
+		window_size: WindowSize
 	) {
 		self.contents.splice(
 			primary_cursor.range(),
@@ -169,6 +188,7 @@ impl Buffer {
 		
 		self.primary_cursor = primary_cursor;
 		self.cursors = cursors.to_vec();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 }
 

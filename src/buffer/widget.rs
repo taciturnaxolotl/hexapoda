@@ -125,7 +125,7 @@ mod hex {
 			
 			let chunks_rendered = chunks.len() + remainder_chunks.iter().len();
 			let chunks_not_rendered = CHUNKS_PER_LINE - chunks_rendered;
-			let spaces_per_chunk = BYTES_PER_CHUNK - 1;
+			let spaces_per_chunk = BYTES_PER_CHUNK - 1 + 2;
 			let bytes_not_rendered = BYTES_PER_LINE - bytes.len();
 			
 			let padding_width = 2 * bytes_not_rendered +
@@ -138,13 +138,6 @@ mod hex {
 				.zip((address..).step_by(BYTES_PER_CHUNK))
 				.map(|(chunk, address)| self.render_chunk(address, &chunk).collect())
 				.chain(remainder_chunks)
-				.interleave(
-					(address..)
-						.step_by(BYTES_PER_CHUNK)
-						.take(CHUNKS_PER_LINE)
-						.skip(1)
-						.map(|address| vec![self.render_large_space_before(address)])
-				)
 				.flatten()
 				.chain(repeat_n(" ".into(), padding_width))
 		}
@@ -247,9 +240,10 @@ mod hex {
 				"  ".into()
 			};
 			
-			if iter::once(&self.primary_cursor)
-				.chain(&self.cursors)
-				.any(|cursor| cursor.contains_space_before(address))
+			if !address.is_multiple_of(BYTES_PER_LINE) &&
+				iter::once(&self.primary_cursor)
+					.chain(&self.cursors)
+					.any(|cursor| cursor.contains_space_before(address))
 			{
 				span.bg(Color::select_grey())
 			} else {

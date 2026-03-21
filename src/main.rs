@@ -22,7 +22,14 @@ const BYTES_PER_LINE: usize = 0x10;
 const BYTES_PER_CHUNK: usize = 4;
 const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 
+const LINES_OF_PADDING: usize = 5;
+const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
+
 // TODO:
+// - zz/zt/zb
+// - resizing can move the cursor off the screen
+// - constant for 5 lines of padding
+// - pad in clamp function, always
 // - search
 // - s/A-k/A-K
 // - C-a/C-x
@@ -36,7 +43,6 @@ const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 // - edit character panel
 //   - modifier on existing keys like teehee? or jump to panel?
 //     - if jump to panel, space?
-// - zz/zt/zb
 // - visual gg/G
 // - jumplist
 // - y/p

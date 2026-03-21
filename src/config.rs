@@ -172,6 +172,11 @@ impl Default for Config {
 					
 					("g".try_into().unwrap(), Action::GotoFileStart),
 				].into()),
+				(Some(PartialAction::View), [
+					("z".try_into().unwrap(), Action::AlignViewCenter),
+					("b".try_into().unwrap(), Action::AlignViewBottom),
+					("t".try_into().unwrap(), Action::AlignViewTop),
+				].into()),
 				(Some(PartialAction::Space), [
 					("w".try_into().unwrap(), Action::Save),
 				].into()),
@@ -238,6 +243,11 @@ impl Default for Config {
 					("J".try_into().unwrap(), Action::JumpToSelectedOffset),
 					
 					("m".try_into().unwrap(), Action::ToggleMark),
+				].into()),
+				(Some(PartialAction::View), [
+					("z".try_into().unwrap(), Action::AlignViewCenter),
+					("b".try_into().unwrap(), Action::AlignViewBottom),
+					("t".try_into().unwrap(), Action::AlignViewTop),
 				].into()),
 				(Some(PartialAction::Space), [
 					("w".try_into().unwrap(), Action::Save),

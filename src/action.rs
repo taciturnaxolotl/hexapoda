@@ -1,7 +1,7 @@
 use std::{cmp::min, collections::hash_set::Entry, convert::identity, fs::File, io::Write, iter, mem::{replace, swap}};
 use ratatui::{style::Stylize, text::Span};
 
-use crate::{BYTES_PER_LINE, app::WindowSize, buffer::{Buffer, Mode, PartialAction}, cursor::Cursor, edit_action::EditAction};
+use crate::{BYTES_OF_PADDING, BYTES_PER_LINE, LINES_OF_PADDING, app::WindowSize, buffer::{Buffer, Mode, PartialAction}, cursor::Cursor, edit_action::EditAction};
 
 #[derive(Clone, Copy)]
 pub enum Action {
@@ -85,6 +85,10 @@ pub enum Action {
 	JumpToSelectedOffset,
 	
 	ToggleMark,
+	
+	AlignViewCenter,
+	AlignViewBottom,
+	AlignViewTop,
 }
 
 // actions that act on the app as a whole, not just one buffer
@@ -148,10 +152,10 @@ impl Buffer {
 			Action::ExtendLineBelow => self.extend_line_below(window_size),
 			Action::ExtendLineAbove => self.extend_line_above(window_size),
 			
-			Action::Delete => self.delete(),
+			Action::Delete => self.delete(window_size),
 			
-			Action::Undo => self.undo(),
-			Action::Redo => self.redo(),
+			Action::Undo => self.undo(window_size),
+			Action::Redo => self.redo(window_size),
 			
 			Action::Save => self.save(),
 			
@@ -179,6 +183,10 @@ impl Buffer {
 			Action::JumpToSelectedOffset => self.jump_to_selected_offset(window_size),
 			
 			Action::ToggleMark => self.toggle_mark(),
+			
+			Action::AlignViewCenter => self.align_view_center(window_size),
+			Action::AlignViewBottom => self.align_view_bottom(window_size),
+			Action::AlignViewTop => self.align_view_top(),
 		}
 		
 		None
@@ -286,31 +294,45 @@ impl Buffer {
 	}
 	
 	pub fn scroll_down(&mut self, window_size: WindowSize) {
-		if self.contents.len() <= 5 * BYTES_PER_LINE { return; }
+		if self.contents.len() <= BYTES_OF_PADDING { return; }
 		
 		self.scroll_position = min(
 			self.scroll_position + BYTES_PER_LINE,
-			self.contents.len() - (5 * BYTES_PER_LINE)
+			self.contents.len() - BYTES_OF_PADDING - self.contents.len() % BYTES_PER_LINE
 		);
 		
-		self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		if window_size.hex_rows() > LINES_OF_PADDING * 2 {
+			self.primary_cursor.clamp(
+				self.scroll_position + BYTES_OF_PADDING,
+				window_size.visible_byte_count() - BYTES_OF_PADDING * 2
+			);
+		} else {
+			self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		}
 		self.combine_cursors_if_overlapping();
 	}
 	
 	pub fn scroll_up(&mut self, window_size: WindowSize) {
 		self.scroll_position = self.scroll_position.saturating_sub(BYTES_PER_LINE);
-		self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		if window_size.hex_rows() > LINES_OF_PADDING * 2 {
+			self.primary_cursor.clamp(
+				self.scroll_position + BYTES_OF_PADDING,
+				window_size.visible_byte_count() - BYTES_OF_PADDING * 2
+			);
+		} else {
+			self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		}
 		self.combine_cursors_if_overlapping();
 	}
 	
 	fn page_cursor_half_down(&mut self, window_size: WindowSize) {
-		if self.contents.len() <= 5 * BYTES_PER_LINE { return; }
+		if self.contents.len() <= BYTES_OF_PADDING { return; }
 		
 		let old_scroll_position = self.scroll_position;
 		
 		self.scroll_position = min(
 			self.scroll_position + (window_size.visible_byte_count() / 2).next_multiple_of(BYTES_PER_LINE),
-			self.contents.len() - (5 * BYTES_PER_LINE)
+			self.contents.len() - BYTES_OF_PADDING - self.contents.len() % BYTES_PER_LINE
 		);
 		
 		let scroll_position_change = self.scroll_position - old_scroll_position;
@@ -361,14 +383,21 @@ impl Buffer {
 	}
 	
 	fn page_down(&mut self, window_size: WindowSize) {
-		if self.contents.len() <= 5 * BYTES_PER_LINE { return; }
+		if self.contents.len() <= BYTES_OF_PADDING { return; }
 		
 		self.scroll_position = min(
 			self.scroll_position + window_size.visible_byte_count(),
-			self.contents.len() - (5 * BYTES_PER_LINE)
+			self.contents.len() - BYTES_OF_PADDING - self.contents.len() % BYTES_PER_LINE
 		);
 		
-		self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		if window_size.hex_rows() > LINES_OF_PADDING * 2 {
+			self.primary_cursor.clamp(
+				self.scroll_position + BYTES_OF_PADDING,
+				window_size.visible_byte_count() - BYTES_OF_PADDING * 2
+			);
+		} else {
+			self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		}
 		self.combine_cursors_if_overlapping();
 	}
 	
@@ -377,7 +406,14 @@ impl Buffer {
 			window_size.visible_byte_count()
 		);
 		
-		self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		if window_size.hex_rows() > LINES_OF_PADDING * 2 {
+			self.primary_cursor.clamp(
+				self.scroll_position + BYTES_OF_PADDING,
+				window_size.visible_byte_count() - BYTES_OF_PADDING * 2
+			);
+		} else {
+			self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		}
 		self.combine_cursors_if_overlapping();
 	}
 	
@@ -443,7 +479,7 @@ impl Buffer {
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
-	fn delete(&mut self) {
+	fn delete(&mut self, window_size: WindowSize) {
 		if !self.contents.is_empty() {
 			self.execute_and_add(
 				EditAction::Delete {
@@ -454,7 +490,8 @@ impl Buffer {
 						.iter()
 						.map(|cursor| self.contents[cursor.range()].to_vec())
 						.collect(),
-				}
+				},
+				window_size
 			);
 		}
 		
@@ -463,7 +500,7 @@ impl Buffer {
 		}
 	}
 	
-	fn undo(&mut self) {
+	fn undo(&mut self, window_size: WindowSize) {
 		if self.time_traveling == Some(0) || self.edit_history.is_empty() { return; }
 		
 		let current_date = self.time_traveling
@@ -476,12 +513,12 @@ impl Buffer {
 			EditAction::Placeholder
 		);
 		
-		self.undo_edit(&edit_action);
+		self.undo_edit(&edit_action, window_size);
 		
 		self.edit_history[current_date] = edit_action;
 	}
 	
-	fn redo(&mut self) {
+	fn redo(&mut self, window_size: WindowSize) {
 		let Some(previous_date) = self.time_traveling else { return; };
 		
 		let current_date = previous_date + 1;
@@ -497,7 +534,7 @@ impl Buffer {
 			EditAction::Placeholder
 		);
 		
-		self.execute_edit(&edit_action);
+		self.execute_edit(&edit_action, window_size);
 		
 		self.edit_history[previous_date] = edit_action;
 	}
@@ -664,19 +701,40 @@ impl Buffer {
 			}
 		}
 	}
+	
+	const fn align_view_center(&mut self, window_size: WindowSize) {
+		let half_a_screen = window_size.visible_byte_count() / 2;
+		
+		self.scroll_position = self.primary_cursor.head
+			.saturating_sub(self.primary_cursor.head % BYTES_PER_LINE)
+			.saturating_sub(half_a_screen - (half_a_screen % BYTES_PER_LINE));
+	}
+	
+	fn align_view_bottom(&mut self, window_size: WindowSize) {
+		self.scroll_position = self.primary_cursor.head
+			.saturating_sub(self.primary_cursor.head % BYTES_PER_LINE)
+			.saturating_sub(
+				window_size
+					.visible_byte_count()
+					.saturating_sub(BYTES_PER_LINE + BYTES_OF_PADDING)
+			)
+			.min(self.max_contents_index() - self.max_contents_index() % BYTES_PER_LINE);
+	}
+	
+	const fn align_view_top(&mut self) {
+		self.scroll_position = self.primary_cursor.head
+			.saturating_sub(self.primary_cursor.head % BYTES_PER_LINE)
+			.saturating_sub(BYTES_OF_PADDING);
+	}
 }
 
 // helpers
 impl Buffer {
-	const fn clamp_screen_to_primary_cursor(&mut self, window_size: WindowSize) {
-		if self.primary_cursor.head < self.scroll_position {
-			self.scroll_position -= (self.scroll_position - self.primary_cursor.head)
-				.next_multiple_of(BYTES_PER_LINE);
-		} else if self.primary_cursor.head > self.scroll_position + window_size.visible_byte_count() - 1 {
-			let screen_edge_offset_to_cursor = self.primary_cursor.head - (
-				self.scroll_position + window_size.visible_byte_count() - 1
-			);
-			self.scroll_position += screen_edge_offset_to_cursor.next_multiple_of(BYTES_PER_LINE);
+	pub fn clamp_screen_to_primary_cursor(&mut self, window_size: WindowSize) {
+		if self.primary_cursor.head < self.scroll_position + BYTES_OF_PADDING {
+			self.align_view_top();
+		} else if self.primary_cursor.head > self.scroll_position + (window_size.visible_byte_count() - 1).saturating_sub(BYTES_OF_PADDING) {
+			self.align_view_bottom(window_size);
 		}
 	}
 }

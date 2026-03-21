@@ -148,8 +148,7 @@ impl Cursor {
 	}
 	
 	pub const fn goto_file_end(&mut self, max: usize) {
-		self.head = previous_multiple_of(BYTES_PER_LINE, max + 1) +
-			(self.head % BYTES_PER_LINE);
+		self.head += previous_multiple_of(BYTES_PER_LINE, max + 1 - self.head);
 		
 		self.collapse();
 	}
@@ -230,11 +229,14 @@ impl Cursor {
 			self.head = min(self.head + BYTES_PER_LINE, max);
 		} else {
 			self.tail -= self.tail % BYTES_PER_LINE;
-			self.head += BYTES_PER_LINE - 1 - (self.head % BYTES_PER_LINE);
+			self.head = min(
+				self.head + BYTES_PER_LINE - 1 - (self.head % BYTES_PER_LINE),
+				max
+			);
 		}
 	}
 	
-	pub const fn extend_line_above(&mut self, max: usize) {
+	pub fn extend_line_above(&mut self, max: usize) {
 		if self.head > self.tail {
 			swap(&mut self.head, &mut self.tail);
 		}
@@ -246,7 +248,10 @@ impl Cursor {
 			self.head = self.head.saturating_sub(BYTES_PER_LINE);
 		} else {
 			self.head -= self.head % BYTES_PER_LINE;
-			self.tail += BYTES_PER_LINE - 1 - (self.tail % BYTES_PER_LINE);
+			self.tail = min(
+				self.tail + BYTES_PER_LINE - 1 - (self.tail % BYTES_PER_LINE),
+				max
+			);
 		}
 	}
 }
@@ -267,57 +272,57 @@ mod tests {
 	fn next_word() {
 		// [a]bcd efgh -> abcd [e]fgh
 		let mut cursor = Cursor::at(0);
-		cursor.move_to_next_word(99);
+		cursor.move_next_word_start(99);
 		assert_eq!(cursor, Cursor::at(4));
 		
 		// a[b]cd efgh -> abcd [e]fgh
 		let mut cursor = Cursor::at(1);
-		cursor.move_to_next_word(99);
+		cursor.move_next_word_start(99);
 		assert_eq!(cursor, Cursor::at(4));
 		
 		// ab[c]d efgh -> abcd [e]fgh
 		let mut cursor = Cursor::at(2);
-		cursor.move_to_next_word(99);
+		cursor.move_next_word_start(99);
 		assert_eq!(cursor, Cursor::at(4));
 		
 		// abc[d] efgh -> abcd [e]fgh
 		let mut cursor = Cursor::at(3);
-		cursor.move_to_next_word(99);
+		cursor.move_next_word_start(99);
 		assert_eq!(cursor, Cursor::at(4));
 		
 		// [a]bcd -> abc[d]
 		let mut cursor = Cursor::at(0);
-		cursor.move_to_next_word(3);
+		cursor.move_next_word_start(3);
 		assert_eq!(cursor, Cursor::at(3));
 		
 		// [a]bc -> ab[c]
 		let mut cursor = Cursor::at(0);
-		cursor.move_to_next_word(2);
+		cursor.move_next_word_start(2);
 		assert_eq!(cursor, Cursor::at(2));
 		
 		// [a]b -> a[b]
 		let mut cursor = Cursor::at(0);
-		cursor.move_to_next_word(1);
+		cursor.move_next_word_start(1);
 		assert_eq!(cursor, Cursor::at(1));
 		
 		// [a] -> [a]
 		let mut cursor = Cursor::at(0);
-		cursor.move_to_next_word(0);
+		cursor.move_next_word_start(0);
 		assert_eq!(cursor, Cursor::at(0));
 		
 		// ab[c]d -> abc[d]
 		let mut cursor = Cursor::at(2);
-		cursor.move_to_next_word(3);
+		cursor.move_next_word_start(3);
 		assert_eq!(cursor, Cursor::at(3));
 		
 		// abc[d] -> abc[d]
 		let mut cursor = Cursor::at(3);
-		cursor.move_to_next_word(3);
+		cursor.move_next_word_start(3);
 		assert_eq!(cursor, Cursor::at(3));
 		
 		// ab[c[d] -> ab[c[d]
 		let mut cursor = Cursor { tail: 2, head: 3 };
-		cursor.move_to_next_word(3);
+		cursor.move_next_word_start(3);
 		assert_eq!(cursor, Cursor { tail: 2, head: 3 });
 	}
 	
@@ -325,97 +330,97 @@ mod tests {
 	fn next_end() {
 		// [a]bcd -> [abcd]
 		let mut cursor = Cursor::at(0);
-		cursor.move_to_next_end(99);
+		cursor.move_next_word_end(99);
 		assert_eq!(cursor, Cursor { tail: 0, head: 3 });
 		
 		// a[b]cd -> [abcd]
 		let mut cursor = Cursor::at(1);
-		cursor.move_to_next_end(99);
+		cursor.move_next_word_end(99);
 		assert_eq!(cursor, Cursor { tail: 1, head: 3 });
 		
 		// ab[c]d -> [abcd]
 		let mut cursor = Cursor::at(2);
-		cursor.move_to_next_end(99);
+		cursor.move_next_word_end(99);
 		assert_eq!(cursor, Cursor { tail: 2, head: 3 });
 		
 		// abc[d] efgh -> abcd [efgh]
 		let mut cursor = Cursor::at(3);
-		cursor.move_to_next_end(99);
+		cursor.move_next_word_end(99);
 		assert_eq!(cursor, Cursor { tail: 4, head: 7 });
 		
 		// abcd [e]fgh -> abcd [efgh]
 		let mut cursor = Cursor::at(4);
-		cursor.move_to_next_end(99);
+		cursor.move_next_word_end(99);
 		assert_eq!(cursor, Cursor { tail: 4, head: 7 });
 		
 		// abcd e[f]gh -> abcd e[fgh]
 		let mut cursor = Cursor::at(5);
-		cursor.move_to_next_end(99);
+		cursor.move_next_word_end(99);
 		assert_eq!(cursor, Cursor { tail: 5, head: 7 });
 		
 		// abcd ef[g]h -> abcd ef[gh]
 		let mut cursor = Cursor::at(6);
-		cursor.move_to_next_end(99);
+		cursor.move_next_word_end(99);
 		assert_eq!(cursor, Cursor { tail: 6, head: 7 });
 		
 		// abcd efg[h] ijkl -> abcd efgh [ijkl]
 		let mut cursor = Cursor::at(7);
-		cursor.move_to_next_end(99);
+		cursor.move_next_word_end(99);
 		assert_eq!(cursor, Cursor { tail: 8, head: 11 });
 		
 		// abcd efg[h] -> abcd efg[h]
 		let mut cursor = Cursor::at(7);
-		cursor.move_to_next_end(7);
+		cursor.move_next_word_end(7);
 		assert_eq!(cursor, Cursor { tail: 7, head: 7 });
 		
 		// abcd e[fgh] -> abcd e[fgh]
 		let mut cursor = Cursor { tail: 5, head: 7 };
-		cursor.move_to_next_end(7);
+		cursor.move_next_word_end(7);
 		assert_eq!(cursor, Cursor { tail: 5, head: 7 });
 		
 		// a[b]c -> a[bc]
 		let mut cursor = Cursor::at(1);
-		cursor.move_to_next_end(2);
+		cursor.move_next_word_end(2);
 		assert_eq!(cursor, Cursor { tail: 1, head: 2 });
 		
 		// a[bc] -> a[bc]
 		let mut cursor = Cursor { tail: 1, head: 2};
-		cursor.move_to_next_end(2);
+		cursor.move_next_word_end(2);
 		assert_eq!(cursor, Cursor { tail: 1, head: 2 });
 		
 		// a[b] -> a[b]
 		let mut cursor = Cursor::at(1);
-		cursor.move_to_next_end(1);
+		cursor.move_next_word_end(1);
 		assert_eq!(cursor, Cursor::at(1));
 		
 		// [a]b -> [ab]
 		let mut cursor = Cursor::at(0);
-		cursor.move_to_next_end(1);
+		cursor.move_next_word_end(1);
 		assert_eq!(cursor, Cursor { tail: 0, head: 1 });
 		
 		// [ab] -> [ab]
 		let mut cursor = Cursor { tail: 0, head: 1};
-		cursor.move_to_next_end(1);
+		cursor.move_next_word_end(1);
 		assert_eq!(cursor, Cursor { tail: 0, head: 1 });
 		
 		// [a] -> [a]
 		let mut cursor = Cursor::at(0);
-		cursor.move_to_next_end(0);
+		cursor.move_next_word_end(0);
 		assert_eq!(cursor, Cursor::at(0));
 		
 		// [a]bcd] -> [abc[d]
 		let mut cursor = Cursor { head: 0, tail: 3 };
-		cursor.move_to_next_end(99);
+		cursor.move_next_word_end(99);
 		assert_eq!(cursor, Cursor { tail: 0, head: 3 });
 		
 		// [a[b]cd -> a[bc[d]
 		let mut cursor = Cursor { tail: 0, head: 1 };
-		cursor.move_to_next_end(99);
+		cursor.move_next_word_end(99);
 		assert_eq!(cursor, Cursor { tail: 1, head: 3 });
 		
 		// abc[d] ef -> abcd [ef]
 		let mut cursor = Cursor::at(3);
-		cursor.move_to_next_end(5);
+		cursor.move_next_word_end(5);
 		assert_eq!(cursor, Cursor { tail: 4, head: 5 });
 	}
 	
@@ -423,57 +428,57 @@ mod tests {
 	fn previous_beginning() {
 		// abcd efgh [i]jkl -> abcd [efgh] ijkl
 		let mut cursor = Cursor::at(8);
-		cursor.move_to_previous_beginning();
+		cursor.move_previous_word_start();
 		assert_eq!(cursor, Cursor { head: 4, tail: 7 });
 		
 		// abcd efg[h] -> abcd [efgh]
 		let mut cursor = Cursor::at(7);
-		cursor.move_to_previous_beginning();
+		cursor.move_previous_word_start();
 		assert_eq!(cursor, Cursor { head: 4, tail: 7 });
 		
 		// abcd ef[g]h -> abcd [efg]h
 		let mut cursor = Cursor::at(6);
-		cursor.move_to_previous_beginning();
+		cursor.move_previous_word_start();
 		assert_eq!(cursor, Cursor { head: 4, tail: 6 });
 		
 		// abcd e[f]gh -> abcd [ef]gh
 		let mut cursor = Cursor::at(5);
-		cursor.move_to_previous_beginning();
+		cursor.move_previous_word_start();
 		assert_eq!(cursor, Cursor { head: 4, tail: 5 });
 		
 		// abcd [e]fgh -> [abcd] efgh
 		let mut cursor = Cursor::at(4);
-		cursor.move_to_previous_beginning();
+		cursor.move_previous_word_start();
 		assert_eq!(cursor, Cursor { head: 0, tail: 3 });
 		
 		// abc[d] -> [abcd]
 		let mut cursor = Cursor::at(3);
-		cursor.move_to_previous_beginning();
+		cursor.move_previous_word_start();
 		assert_eq!(cursor, Cursor { head: 0, tail: 3 });
 		
 		// ab[c]d -> [abc]d
 		let mut cursor = Cursor::at(2);
-		cursor.move_to_previous_beginning();
+		cursor.move_previous_word_start();
 		assert_eq!(cursor, Cursor { head: 0, tail: 2 });
 		
 		// a[b]cd -> [ab]cd
 		let mut cursor = Cursor::at(1);
-		cursor.move_to_previous_beginning();
+		cursor.move_previous_word_start();
 		assert_eq!(cursor, Cursor { head: 0, tail: 1 });
 		
 		// [a]bcd -> [a]bcd
 		let mut cursor = Cursor::at(0);
-		cursor.move_to_previous_beginning();
+		cursor.move_previous_word_start();
 		assert_eq!(cursor, Cursor { head: 0, tail: 0 });
 		
 		// [abc[d] -> [a]bcd]
 		let mut cursor = Cursor { tail: 0, head: 3 };
-		cursor.move_to_previous_beginning();
+		cursor.move_previous_word_start();
 		assert_eq!(cursor, Cursor { head: 0, tail: 3 });
 		
 		// ab[c]d] -> [a]bc]d
 		let mut cursor = Cursor { head: 2, tail: 3 };
-		cursor.move_to_previous_beginning();
+		cursor.move_previous_word_start();
 		assert_eq!(cursor, Cursor { head: 0, tail: 2 });
 	}
 }
