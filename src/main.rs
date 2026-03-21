@@ -2,6 +2,7 @@
 #![allow(clippy::cast_possible_truncation)]
 #![feature(get_disjoint_mut_helpers)]
 #![feature(exact_bitshifts)]
+#![feature(hash_set_entry)]
 
 use app::App;
 

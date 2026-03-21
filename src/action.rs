@@ -1,4 +1,4 @@
-use std::{cmp::min, convert::identity, fs::File, io::Write, iter, mem::{replace, swap}};
+use std::{cmp::min, collections::hash_set::Entry, convert::identity, fs::File, io::Write, iter, mem::{replace, swap}};
 use ratatui::{style::Stylize, text::Span};
 
 use crate::{BYTES_PER_LINE, app::WindowSize, buffer::{Buffer, Mode, PartialAction}, cursor::Cursor, edit_action::EditAction};
@@ -83,6 +83,8 @@ pub enum Action {
 	SplitSelectionsInto9s,
 	
 	JumpToSelectedOffset,
+	
+	ToggleMark,
 }
 
 // actions that act on the app as a whole, not just one buffer
@@ -175,6 +177,8 @@ impl Buffer {
 			Action::SplitSelectionsInto9s => self.split_selections_into_size(9),
 			
 			Action::JumpToSelectedOffset => self.jump_to_selected_offset(window_size),
+			
+			Action::ToggleMark => self.toggle_mark(),
 		}
 		
 		None
@@ -645,6 +649,20 @@ impl Buffer {
 		
 		self.combine_cursors_if_overlapping();
 		self.clamp_screen_to_primary_cursor(window_size);
+	}
+	
+	fn toggle_mark(&mut self) {
+		match self.marks.entry(self.primary_cursor.lower_bound()) {
+			Entry::Occupied(occupied_entry) => { occupied_entry.remove(); },
+			Entry::Vacant(vacant_entry) => vacant_entry.insert(),
+		}
+		
+		for cursor in &self.cursors {
+			match self.marks.entry(cursor.lower_bound()) {
+				Entry::Occupied(occupied_entry) => { occupied_entry.remove(); },
+				Entry::Vacant(vacant_entry) => vacant_entry.insert(),
+			}
+		}
 	}
 }
 

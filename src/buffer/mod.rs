@@ -1,5 +1,5 @@
 use core::slice::GetDisjointMutIndex;
-use std::{fs::File, io::Read, path::PathBuf};
+use std::{collections::HashSet, fs::File, io::Read, path::PathBuf};
 use crossterm::event::KeyEvent;
 use ratatui::{style::Color, text::Span};
 use crate::{action::AppAction, app::WindowSize, config::Config, cursor::Cursor, edit_action::EditAction};
@@ -15,6 +15,8 @@ pub struct Buffer {
 	pub scroll_position: usize,
 	pub primary_cursor: Cursor,
 	pub cursors: Vec<Cursor>,
+	
+	pub marks: HashSet<usize>,
 	
 	pub mode: Mode,
 	pub partial_action: Option<PartialAction>,
@@ -85,6 +87,8 @@ impl Buffer {
 			scroll_position: 0,
 			primary_cursor: Cursor::default(),
 			cursors: Vec::new(),
+			
+			marks: HashSet::from([0, 4, 12, 15, 16, 17]),
 			
 			mode: Mode::Normal,
 			partial_action: None,

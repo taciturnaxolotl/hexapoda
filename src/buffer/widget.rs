@@ -76,7 +76,7 @@ mod address {
 	pub fn render_address(address: usize) -> Span<'static> {
 		Span {
 			style: Style::new().fg(Color::Rgb(138, 187, 195)),
-			content: format!("{address:08x}  ").into()
+			content: format!("{address:08x}").into()
 		}
 	}
 }
@@ -103,15 +103,9 @@ mod hex {
 				.iter()
 				.copied()
 				.zip((address..).step_by(BYTES_PER_CHUNK))
-				.map(|(chunk, address)| self.render_chunk(address, &chunk).collect())
-				.interleave(
-					(address..)
-						.step_by(BYTES_PER_CHUNK)
-						.take(CHUNKS_PER_LINE)
-						.skip(1)
-						.map(|address| vec![self.render_large_space_before(address)])
-				)
-				.flatten()
+				.flat_map(|(chunk, address)| {
+					self.render_chunk(address, &chunk).collect::<Vec<_>>()
+				})
 		}
 		
 		pub fn render_partial_chunks(
@@ -161,16 +155,19 @@ mod hex {
 			bytes: &[u8; BYTES_PER_CHUNK]
 		) -> impl Iterator<Item=Span<'static>> {
 			#[allow(unstable_name_collisions)]
-			bytes
-				.iter()
-				.copied()
-				.zip(address..)
-				.map(|(byte, address)| self.render_byte_at(address, byte))
-				.interleave(
-					(address..)
-						.take(BYTES_PER_CHUNK)
-						.skip(1)
-						.map(|address| self.render_space_before(address))
+			iter::once(self.render_large_space_before(address))
+				.chain(
+					bytes
+						.iter()
+						.copied()
+						.zip(address..)
+						.map(|(byte, address)| self.render_byte_at(address, byte))
+						.interleave(
+							(address..)
+								.take(BYTES_PER_CHUNK)
+								.skip(1)
+								.map(|address| self.render_space_before(address))
+						)
 				)
 		}
 		
@@ -244,30 +241,36 @@ mod hex {
 		}
 		
 		fn render_large_space_before(&self, address: usize) -> Span<'static> {
+			let span: Span = if self.marks.contains(&address) {
+				" →".into()
+			} else {
+				"  ".into()
+			};
+			
 			if iter::once(&self.primary_cursor)
 				.chain(&self.cursors)
 				.any(|cursor| cursor.contains_space_before(address))
 			{
-				Span {
-					style: Style::new().bg(Color::select_grey()),
-					content: "  ".into()
-				}
+				span.bg(Color::select_grey())
 			} else {
-				"  ".into()
+				span
 			}
 		}
 		
 		fn render_space_before(&self, address: usize) -> Span<'static> {
+			let span: Span = if self.marks.contains(&address) {
+				"→".into()
+			} else {
+				" ".into()
+			};
+			
 			if iter::once(&self.primary_cursor)
 				.chain(&self.cursors)
 				.any(|cursor| cursor.contains_space_before(address))
 			{
-				Span {
-					style: Style::new().bg(Color::select_grey()),
-					content: " ".into()
-				}
+				span.bg(Color::select_grey())
 			} else {
-				" ".into()
+				span
 			}
 		}
 	}
