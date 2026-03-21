@@ -1,6 +1,7 @@
 #![warn(clippy::pedantic, clippy::nursery)]
 #![allow(clippy::cast_possible_truncation)]
 #![feature(get_disjoint_mut_helpers)]
+#![feature(exact_bitshifts)]
 
 use app::App;
 
@@ -20,7 +21,6 @@ const BYTES_PER_CHUNK: usize = 4;
 const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 
 // TODO:
-// - J jump to offset under cursor
 // - m mark offset
 // - search
 // - s/A-k/A-K
@@ -40,6 +40,8 @@ const CHUNKS_PER_LINE: usize = BYTES_PER_LINE / BYTES_PER_CHUNK;
 // - y/p
 // - [/] to cycle view offset?
 // - gj jump to entered offset
+// - repeat X times (dec and hex)
+// - jump relative to last marker?
 
 // future directions
 // - 'views' for bytes (i8/16/etc u8/16/etc 20.12/8.4/etc)

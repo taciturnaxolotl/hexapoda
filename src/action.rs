@@ -81,6 +81,8 @@ pub enum Action {
 	SplitSelectionsInto7s,
 	SplitSelectionsInto8s,
 	SplitSelectionsInto9s,
+	
+	JumpToSelectedOffset,
 }
 
 // actions that act on the app as a whole, not just one buffer
@@ -171,6 +173,8 @@ impl Buffer {
 			Action::SplitSelectionsInto7s => self.split_selections_into_size(7),
 			Action::SplitSelectionsInto8s => self.split_selections_into_size(8),
 			Action::SplitSelectionsInto9s => self.split_selections_into_size(9),
+			
+			Action::JumpToSelectedOffset => self.jump_to_selected_offset(window_size),
 		}
 		
 		None
@@ -600,11 +604,47 @@ impl Buffer {
 				cursor
 					.range()
 					.step_by(size)
-					.map(|head| Cursor { head, tail: head + size - 1 })
+					.map(|tail| Cursor { head: tail + size - 1, tail })
 			});
 		
 		self.primary_cursor = new_cursors.next().unwrap();
 		self.cursors = new_cursors.collect();
+	}
+	
+	fn jump_to_selected_offset(&mut self, window_size: WindowSize) {
+		if !iter::once(&self.primary_cursor)
+			.chain(&self.cursors)
+			.all(|cursor| {
+				bytes_as_nat(&self.contents[cursor.range()])
+					.is_some_and(|offset| offset < self.contents.len())
+			})
+		{
+			if self.cursors.is_empty() {
+				self.alert_message = Span::from(
+					"selection is not a valid offset"
+				).red();
+			} else {
+				self.alert_message = Span::from(
+					"not all selections are valid offsets"
+				).red();
+			}
+			return;
+		}
+		
+		self.primary_cursor = Cursor::at(
+			bytes_as_nat(&self.contents[self.primary_cursor.range()]).unwrap()
+		);
+		
+		for cursor in &mut self.cursors {
+			*cursor = Cursor::at(
+				bytes_as_nat(&self.contents[cursor.range()]).unwrap()
+			);
+		}
+		
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 }
 
@@ -621,4 +661,14 @@ impl Buffer {
 			self.scroll_position += screen_edge_offset_to_cursor.next_multiple_of(BYTES_PER_LINE);
 		}
 	}
+}
+
+fn bytes_as_nat(bytes: &[u8]) -> Option<usize> {
+	bytes
+		.iter()
+		.rev() // little-endian
+		.skip_while(|&&byte| byte == 0)
+		.try_fold(usize::default(), |result, &byte| {
+			Some(result.shl_exact(8)? | (byte as usize))
+		})
 }

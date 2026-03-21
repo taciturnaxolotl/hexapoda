@@ -161,6 +161,8 @@ impl Default for Config {
 					("7".try_into().unwrap(), Action::SplitSelectionsInto7s),
 					("8".try_into().unwrap(), Action::SplitSelectionsInto8s),
 					("9".try_into().unwrap(), Action::SplitSelectionsInto9s),
+					
+					("J".try_into().unwrap(), Action::JumpToSelectedOffset),
 				].into()),
 				(Some(PartialAction::Goto), [
 					("j".try_into().unwrap(), Action::GotoLineStart),
@@ -230,6 +232,8 @@ impl Default for Config {
 					("7".try_into().unwrap(), Action::SplitSelectionsInto7s),
 					("8".try_into().unwrap(), Action::SplitSelectionsInto8s),
 					("9".try_into().unwrap(), Action::SplitSelectionsInto9s),
+					
+					("J".try_into().unwrap(), Action::JumpToSelectedOffset),
 				].into()),
 				(Some(PartialAction::Space), [
 					("w".try_into().unwrap(), Action::Save),
