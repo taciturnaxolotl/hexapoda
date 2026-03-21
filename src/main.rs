@@ -26,10 +26,8 @@ const LINES_OF_PADDING: usize = 5;
 const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 
 // TODO:
-// - zz/zt/zb
 // - resizing can move the cursor off the screen
-// - constant for 5 lines of padding
-// - pad in clamp function, always
+// - tab bar overflow
 // - search
 // - s/A-k/A-K
 // - C-a/C-x
@@ -49,11 +47,13 @@ const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 // - [/] to cycle view offset?
 // - gj jump to entered offset
 // - repeat X times (dec and hex)
-// - jump relative to last marker?
+//   - from register??
+// - extend to mark (tm?)
 
 // future directions
 // - 'views' for bytes (i8/16/etc u8/16/etc 20.12/8.4/etc)
 //   - how to fit??! `-128` longer than `80`
+//   - popup for different readings for the selected bytes
 // - utf8?
 // - diffing
 
@@ -78,6 +78,10 @@ fn main() {
 	ratatui::restore();
 	
 	// dbg!(app.edit_history);
+	
+	for log in app.logs {
+		println!("{log}");
+	}
 	
 	for log in app.buffers.iter().flat_map(|buffer| &buffer.logs) {
 		println!("{log}");

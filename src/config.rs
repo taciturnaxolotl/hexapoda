@@ -86,10 +86,7 @@ impl From<KeyEvent> for Keypress {
 	fn from(event: KeyEvent) -> Self {
 		Self {
 			code: event.code,
-			modifiers: match event.modifiers {
-				KeyModifiers::SHIFT => KeyModifiers::NONE,
-				x => x,
-			},
+			modifiers: event.modifiers.difference(KeyModifiers::SHIFT),
 		}
 	}
 }
@@ -162,7 +159,8 @@ impl Default for Config {
 					("8".try_into().unwrap(), Action::SplitSelectionsInto8s),
 					("9".try_into().unwrap(), Action::SplitSelectionsInto9s),
 					
-					("J".try_into().unwrap(), Action::JumpToSelectedOffset),
+					("J".try_into().unwrap(), Action::JumpToSelectedOffsetRelativeToMark),
+					("A-J".try_into().unwrap(), Action::JumpToSelectedOffset),
 					
 					("m".try_into().unwrap(), Action::ToggleMark),
 				].into()),
@@ -240,7 +238,8 @@ impl Default for Config {
 					("8".try_into().unwrap(), Action::SplitSelectionsInto8s),
 					("9".try_into().unwrap(), Action::SplitSelectionsInto9s),
 					
-					("J".try_into().unwrap(), Action::JumpToSelectedOffset),
+					("J".try_into().unwrap(), Action::JumpToSelectedOffsetRelativeToMark),
+					("A-J".try_into().unwrap(), Action::JumpToSelectedOffset),
 					
 					("m".try_into().unwrap(), Action::ToggleMark),
 				].into()),

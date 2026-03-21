@@ -14,6 +14,8 @@ pub struct App {
 	pub window_size: WindowSize,
 	
 	pub should_quit: bool,
+	
+	pub logs: Vec<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -53,6 +55,8 @@ impl App {
 			window_size,
 			
 			should_quit: false,
+			
+			logs: Vec::new(),
 		}
 	}
 	

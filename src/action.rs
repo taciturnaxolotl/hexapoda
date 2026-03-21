@@ -83,6 +83,7 @@ pub enum Action {
 	SplitSelectionsInto9s,
 	
 	JumpToSelectedOffset,
+	JumpToSelectedOffsetRelativeToMark,
 	
 	ToggleMark,
 	
@@ -181,6 +182,7 @@ impl Buffer {
 			Action::SplitSelectionsInto9s => self.split_selections_into_size(9),
 			
 			Action::JumpToSelectedOffset => self.jump_to_selected_offset(window_size),
+			Action::JumpToSelectedOffsetRelativeToMark => self.jump_to_selected_offset_relative_to_mark(window_size),
 			
 			Action::ToggleMark => self.toggle_mark(),
 			
@@ -688,6 +690,54 @@ impl Buffer {
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
+	fn jump_to_selected_offset_relative_to_mark(&mut self, window_size: WindowSize) {
+		let mut sorted_marks: Vec<_> = self.marks.iter().copied().collect();
+		sorted_marks.sort_unstable();
+		
+		if !iter::once(&self.primary_cursor)
+			.chain(&self.cursors)
+			.all(|cursor| {
+				bytes_as_nat(&self.contents[cursor.range()])
+					.map(|offset| mark_before(cursor.lower_bound(), &sorted_marks) + offset)
+					.is_some_and(|offset| offset < self.contents.len())
+			})
+		{
+			if self.cursors.is_empty() {
+				self.alert_message = Span::from(
+					"selection is not a valid offset"
+				).red();
+			} else {
+				self.alert_message = Span::from(
+					"not all selections are valid offsets"
+				).red();
+			}
+			return;
+		}
+		
+		self.primary_cursor = Cursor::at(
+			bytes_as_nat(&self.contents[self.primary_cursor.range()])
+				.map(|offset| {
+					mark_before(self.primary_cursor.lower_bound(), &sorted_marks) + offset
+				})
+				.unwrap()
+		);
+		
+		for cursor in &mut self.cursors {
+			*cursor = Cursor::at(
+				bytes_as_nat(&self.contents[cursor.range()])
+				.map(|offset| {
+					mark_before(cursor.lower_bound(), &sorted_marks) + offset
+				})
+				.unwrap()
+			);
+		}
+		
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
+	}
+	
 	fn toggle_mark(&mut self) {
 		match self.marks.entry(self.primary_cursor.lower_bound()) {
 			Entry::Occupied(occupied_entry) => { occupied_entry.remove(); },
@@ -747,4 +797,13 @@ fn bytes_as_nat(bytes: &[u8]) -> Option<usize> {
 		.try_fold(usize::default(), |result, &byte| {
 			Some(result.shl_exact(8)? | (byte as usize))
 		})
+}
+
+// or 0 if no mark is before
+fn mark_before(offset: usize, sorted_marks: &[usize]) -> usize {
+	match sorted_marks.binary_search(&offset) {
+		Ok(_) => offset,
+		Err(0) => 0,
+		Err(mark_after_index) => sorted_marks[mark_after_index - 1],
+	}
 }
