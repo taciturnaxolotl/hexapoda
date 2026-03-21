@@ -1,5 +1,6 @@
 #![warn(clippy::pedantic, clippy::nursery)]
 #![allow(clippy::cast_possible_truncation)]
+#![feature(get_disjoint_mut_helpers)]
 
 use app::App;
 

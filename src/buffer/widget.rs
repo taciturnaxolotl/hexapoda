@@ -82,7 +82,7 @@ mod address {
 }
 
 mod hex {
-	use std::{borrow::Cow, mem};
+	use std::{borrow::Cow, iter, mem};
 	use itertools::{Itertools, repeat_n};
 	use ratatui::{style::{Color, Style, Stylize}, text::Span};
 	
@@ -199,7 +199,9 @@ mod hex {
 			byte: u8
 		) -> Span<'static> {
 			if self.partial_action == Some(PartialAction::Replace) &&
-			   self.cursor.contains(address).is_some()
+			   iter::once(&self.primary_cursor)
+				.chain(&self.cursors)
+				.any(|cursor| cursor.contains(address).is_some())
 			{
 				let replaced_byte = self.partial_replace.unwrap_or(0) << 4;
 				
@@ -224,7 +226,10 @@ mod hex {
 				_ => Color::Gray
 			};
 			
-			match self.cursor.contains(address) {
+			match iter::once(&self.primary_cursor)
+				.chain(&self.cursors)
+				.find_map(|cursor| cursor.contains(address))
+			{
 				Some(InCursor::Head) => span.bg(head_color),
 				Some(InCursor::Rest) => span.bg(Color::select_grey()),
 				None => span,
@@ -232,7 +237,10 @@ mod hex {
 		}
 		
 		fn render_large_space_before(&self, address: usize) -> Span<'static> {
-			if self.cursor.contains_space_before(address) {
+			if iter::once(&self.primary_cursor)
+				.chain(&self.cursors)
+				.any(|cursor| cursor.contains_space_before(address))
+			{
 				Span {
 					style: Style::new().bg(Color::select_grey()),
 					content: "  ".into()
@@ -243,7 +251,10 @@ mod hex {
 		}
 		
 		fn render_space_before(&self, address: usize) -> Span<'static> {
-			if self.cursor.contains_space_before(address) {
+			if iter::once(&self.primary_cursor)
+				.chain(&self.cursors)
+				.any(|cursor| cursor.contains_space_before(address))
+			{
 				Span {
 					style: Style::new().bg(Color::select_grey()),
 					content: " ".into()
@@ -306,7 +317,7 @@ mod hex {
 }
 
 mod character_panel {
-	use std::{borrow::Cow, mem};
+	use std::{borrow::Cow, iter, mem};
 	use ratatui::{style::{Color, Style, Stylize}, text::Span};
 	use crate::{buffer::Buffer, cardinality::HasCardinality, cursor::InCursor, custom_greys::CustomGreys, empty_span::empty_span};
 	
@@ -332,7 +343,10 @@ mod character_panel {
 			
 			let span = SPAN_FOR_BYTE[byte as usize].clone();
 			
-			match self.cursor.contains(address) {
+			match iter::once(&self.primary_cursor)
+				.chain(&self.cursors)
+				.find_map(|cursor| cursor.contains(address))
+			{
 				Some(InCursor::Head) => span.bg(Color::select_grey()),
 				Some(InCursor::Rest) => span.on_dark_gray(),
 				None => span,
@@ -434,7 +448,7 @@ mod extra_statuses {
 				format!("{partial_action} ").into()
 			} else {
 				#[allow(clippy::cast_precision_loss)]
-				let percentage = self.cursor.head as f64 / self.max_contents_index() as f64 * 100.0;
+				let percentage = self.primary_cursor.head as f64 / self.max_contents_index() as f64 * 100.0;
 				
 				format!("{partial_action} {percentage:.0}% ").into()
 			}

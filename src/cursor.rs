@@ -1,4 +1,6 @@
-use std::ops::RangeInclusive;
+use std::{cmp::{max, min}, mem::swap, ops::RangeInclusive};
+
+use crate::BYTES_PER_LINE;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Cursor {
@@ -12,6 +14,22 @@ pub enum InCursor {
 }
 
 impl Cursor {
+	pub const fn at(index: usize) -> Self {
+		Self { head: index, tail: index }
+	}
+	
+	pub fn lower_bound(&self) -> usize {
+		min(self.head, self.tail)
+	}
+	
+	pub fn upper_bound(&self) -> usize {
+		max(self.head, self.tail)
+	}
+	
+	pub fn range(&self) -> RangeInclusive<usize> {
+		self.lower_bound()..=self.upper_bound()
+	}
+	
 	pub const fn contains(&self, index: usize) -> Option<InCursor> {
 		if index == self.head {
 			Some(InCursor::Head)
@@ -41,12 +59,91 @@ impl Cursor {
 		self.tail = self.tail.clamp(scroll_position, max_row);
 	}
 	
-	pub const fn range(&self) -> RangeInclusive<usize> {
+	pub fn combine_with(&mut self, other: Self) {
 		if self.head < self.tail {
-			self.head..=self.tail
+			self.head = min(self.head, other.head);
+			self.tail = max(self.tail, other.tail);
 		} else {
-			self.tail..=self.head
+			self.head = max(self.head, other.head);
+			self.tail = min(self.tail, other.tail);
 		}
+	}
+	
+	pub const fn move_byte_up(&mut self) {
+		if self.head >= BYTES_PER_LINE {
+			self.head -= BYTES_PER_LINE;
+			self.collapse();
+		}
+	}
+	
+	pub const fn move_byte_down(&mut self, max: usize) {
+		if max - self.head >= BYTES_PER_LINE {
+			self.head += BYTES_PER_LINE;
+			self.collapse();
+		}
+	}
+	
+	pub const fn move_byte_left(&mut self) {
+		if self.head >= 1 {
+			self.head -= 1;
+			self.collapse();
+		}
+	}
+	
+	pub const fn move_byte_right(&mut self, max: usize) {
+		if max - self.head >= 1 {
+			self.head += 1;
+			self.collapse();
+		}
+	}
+	
+	pub const fn extend_byte_up(&mut self) {
+		if self.head >= BYTES_PER_LINE {
+			self.head -= BYTES_PER_LINE;
+		}
+	}
+	
+	pub const fn extend_byte_down(&mut self, max: usize) {
+		if max - self.head >= BYTES_PER_LINE {
+			self.head += BYTES_PER_LINE;
+		}
+	}
+	
+	pub const fn extend_byte_left(&mut self) {
+		if self.head >= 1 {
+			self.head -= 1;
+		}
+	}
+	
+	pub const fn extend_byte_right(&mut self, max: usize) {
+		if max - self.head >= 1 {
+			self.head += 1;
+		}
+	}
+	
+	pub const fn goto_line_start(&mut self) {
+		self.head -= self.head % BYTES_PER_LINE;
+		self.collapse();
+	}
+	
+	pub fn goto_line_end(&mut self, max: usize) {
+		self.head = min(
+			self.head + BYTES_PER_LINE - 1 - (self.head % BYTES_PER_LINE),
+			max
+		);
+		self.collapse();
+	}
+	
+	pub const fn goto_file_start(&mut self) {
+		self.head %= BYTES_PER_LINE;
+		self.collapse();
+	}
+	
+	pub const fn goto_file_end(&mut self, max: usize) {
+		self.head = previous_multiple_of(BYTES_PER_LINE, max + 1) +
+			(self.head % BYTES_PER_LINE);
+		
+		self.collapse();
 	}
 	
 	pub fn move_to_next_word(&mut self, max: usize) {
@@ -113,18 +210,51 @@ impl Cursor {
 			self.head -= self.head % 4;
 		}
 	}
-}
-
-mod tests {
-	use crate::cursor::Cursor;
 	
-	impl Cursor {
-		#[allow(dead_code)]
-		const fn at(index: usize) -> Self {
-			Self { head: index, tail: index }
+	pub fn extend_line_below(&mut self, max: usize) {
+		if self.tail > self.head {
+			swap(&mut self.head, &mut self.tail);
+		}
+		
+		if self.tail.is_multiple_of(BYTES_PER_LINE) &&
+           self.head % BYTES_PER_LINE == BYTES_PER_LINE - 1
+		{
+			self.head = min(self.head + BYTES_PER_LINE, max);
+		} else {
+			self.tail -= self.tail % BYTES_PER_LINE;
+			self.head += BYTES_PER_LINE - 1 - (self.head % BYTES_PER_LINE);
 		}
 	}
 	
+	pub const fn extend_line_above(&mut self, max: usize) {
+		if self.head > self.tail {
+			swap(&mut self.head, &mut self.tail);
+		}
+		
+		if self.head.is_multiple_of(BYTES_PER_LINE) &&
+		   (self.tail % BYTES_PER_LINE == BYTES_PER_LINE - 1 ||
+		    self.tail == max)
+		{
+			self.head = self.head.saturating_sub(BYTES_PER_LINE);
+		} else {
+			self.head -= self.head % BYTES_PER_LINE;
+			self.tail += BYTES_PER_LINE - 1 - (self.tail % BYTES_PER_LINE);
+		}
+	}
+}
+
+const fn previous_multiple_of(multiple: usize, number: usize) -> usize {
+	if number == 0 {
+		0
+	} else {
+		(number - 1) - ((number - 1) % multiple)
+	}
+}
+
+mod tests {
+	#[allow(unused_imports)]
+    use crate::cursor::Cursor;
+
 	#[test]
 	fn next_word() {
 		// [a]bcd efgh -> abcd [e]fgh

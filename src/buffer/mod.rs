@@ -1,3 +1,4 @@
+use core::slice::GetDisjointMutIndex;
 use std::{fs::File, io::Read, path::PathBuf};
 use crossterm::event::KeyEvent;
 use ratatui::{style::Color, text::Span};
@@ -12,7 +13,8 @@ pub struct Buffer {
 	pub contents: Vec<u8>,
 	
 	pub scroll_position: usize,
-	pub cursor: Cursor,
+	pub primary_cursor: Cursor,
+	pub cursors: Vec<Cursor>,
 	
 	pub mode: Mode,
 	pub partial_action: Option<PartialAction>,
@@ -79,7 +81,8 @@ impl Buffer {
 			contents,
 			
 			scroll_position: 0,
-			cursor: Cursor::default(),
+			primary_cursor: Cursor::default(),
+			cursors: Vec::new(),
 			
 			mode: Mode::Normal,
 			partial_action: None,
@@ -110,8 +113,13 @@ impl Buffer {
 				if let Some(partial_replace) = self.partial_replace.take() {
 					self.execute_and_add(
 						EditAction::Replace {
-							cursor: self.cursor,
-							old_data: self.contents[self.cursor.range()].into(),
+							primary_cursor: self.primary_cursor,
+							cursors: self.cursors.clone(),
+							primary_old_data: self.contents[self.primary_cursor.range()].to_vec(),
+							old_data: self.cursors
+								.iter()
+								.map(|cursor| self.contents[cursor.range()].to_vec())
+								.collect(),
 							new_byte: partial_replace << 4 | nybble
 						}
 					);
@@ -160,6 +168,32 @@ impl Buffer {
 	// returns 0 if empty
 	pub const fn max_contents_index(&self) -> usize {
 		self.contents.len().saturating_sub(1)
+	}
+	
+	pub fn combine_cursors_if_overlapping(&mut self) {
+		if self.cursors.is_empty() { return; }
+		
+		let mut index = 0;
+		
+		while index < self.cursors.len() - 1 {
+			while index < self.cursors.len() - 1 &&
+				self.cursors[index].range().is_overlapping(
+					&self.cursors[index + 1].range())
+			{
+				let next_cursor = self.cursors[index + 1];
+				self.cursors[index].combine_with(next_cursor);
+				self.cursors.remove(index + 1);
+			}
+			
+			if self.primary_cursor.range()
+				.is_overlapping(&self.cursors[index].range())
+			{
+				self.primary_cursor.combine_with(self.cursors[index]);
+				self.cursors.remove(index);
+			}
+			
+			index += 1;
+		}
 	}
 }
 

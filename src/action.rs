@@ -1,4 +1,4 @@
-use std::{cmp::min, fs::File, io::Write, mem::{replace, swap}};
+use std::{cmp::min, fs::File, io::Write, mem::replace};
 use crate::{BYTES_PER_LINE, app::WindowSize, buffer::{Buffer, Mode, PartialAction}, edit_action::EditAction};
 
 #[derive(Clone, Copy)]
@@ -119,8 +119,8 @@ impl Buffer {
 			
 			Action::CollapseSelection => self.collapse_selection(),
 			
-			Action::ExtendLineBelow => self.extend_line_below(),
-			Action::ExtendLineAbove => self.extend_line_above(),
+			Action::ExtendLineBelow => self.extend_line_below(window_size),
+			Action::ExtendLineAbove => self.extend_line_above(window_size),
 			
 			Action::Delete => self.delete(),
 			
@@ -162,95 +162,159 @@ impl Buffer {
 		self.partial_action = Some(PartialAction::Space);
 	}
 	
-	const fn move_byte_up(&mut self, window_size: WindowSize) {
-		if self.cursor.head >= BYTES_PER_LINE {
-			self.cursor.head -= BYTES_PER_LINE;
-			self.cursor.collapse();
-			
-			self.clamp_screen_to_cursor(window_size);
+	// TODO: all these move/extend-cursor operations could be DRYed together
+	fn move_byte_up(&mut self, window_size: WindowSize) {
+		self.primary_cursor.move_byte_up();
+		
+		for cursor in &mut self.cursors {
+			cursor.move_byte_up();
 		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
-	const fn move_byte_down(&mut self, window_size: WindowSize) {
-		if self.max_contents_index() - self.cursor.head >= BYTES_PER_LINE {
-			self.cursor.head += BYTES_PER_LINE;
-			self.cursor.collapse();
-			
-			self.clamp_screen_to_cursor(window_size);
+	fn move_byte_down(&mut self, window_size: WindowSize) {
+		let max_contents_index = self.max_contents_index();
+		
+		self.primary_cursor.move_byte_down(max_contents_index);
+		
+		for cursor in &mut self.cursors {
+			cursor.move_byte_down(max_contents_index);
 		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
-	const fn move_byte_left(&mut self, window_size: WindowSize) {
-		if self.cursor.head >= 1 {
-			self.cursor.head -= 1;
-			self.cursor.collapse();
-			
-			self.clamp_screen_to_cursor(window_size);
+	fn move_byte_left(&mut self, window_size: WindowSize) {
+		self.primary_cursor.move_byte_left();
+		
+		for cursor in &mut self.cursors {
+			cursor.move_byte_left();
 		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
-	const fn move_byte_right(&mut self, window_size: WindowSize) {
-		if self.max_contents_index() - self.cursor.head >= 1 {
-			self.cursor.head += 1;
-			self.cursor.collapse();
-			
-			self.clamp_screen_to_cursor(window_size);
+	fn move_byte_right(&mut self, window_size: WindowSize) {
+		let max_contents_index = self.max_contents_index();
+		
+		self.primary_cursor.move_byte_right(max_contents_index);
+		
+		for cursor in &mut self.cursors {
+			cursor.move_byte_right(max_contents_index);
 		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
-	const fn extend_byte_up(&mut self, window_size: WindowSize) {
-		if self.cursor.head >= BYTES_PER_LINE {
-			self.cursor.head -= BYTES_PER_LINE;
-			self.clamp_screen_to_cursor(window_size);
+	fn extend_byte_up(&mut self, window_size: WindowSize) {
+		self.primary_cursor.extend_byte_up();
+		
+		for cursor in &mut self.cursors {
+			cursor.extend_byte_up();
 		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
-	const fn extend_byte_down(&mut self, window_size: WindowSize) {
-		if self.max_contents_index() - self.cursor.head >= BYTES_PER_LINE {
-			self.cursor.head += BYTES_PER_LINE;
-			self.clamp_screen_to_cursor(window_size);
+	fn extend_byte_down(&mut self, window_size: WindowSize) {
+		let max_contents_index = self.max_contents_index();
+		
+		self.primary_cursor.extend_byte_down(max_contents_index);
+		
+		for cursor in &mut self.cursors {
+			cursor.extend_byte_down(max_contents_index);
 		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
-	const fn extend_byte_left(&mut self, window_size: WindowSize) {
-		if self.cursor.head >= 1 {
-			self.cursor.head -= 1;
-			self.clamp_screen_to_cursor(window_size);
+	fn extend_byte_left(&mut self, window_size: WindowSize) {
+		self.primary_cursor.extend_byte_left();
+		
+		for cursor in &mut self.cursors {
+			cursor.extend_byte_left();
 		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
-	const fn extend_byte_right(&mut self, window_size: WindowSize) {
-		if self.max_contents_index() - self.cursor.head >= 1 {
-			self.cursor.head += 1;
-			self.clamp_screen_to_cursor(window_size);
+	fn extend_byte_right(&mut self, window_size: WindowSize) {
+		let max_contents_index = self.max_contents_index();
+		
+		self.primary_cursor.extend_byte_right(max_contents_index);
+		
+		for cursor in &mut self.cursors {
+			cursor.extend_byte_right(max_contents_index);
 		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
-	const fn goto_line_start(&mut self) {
-		self.cursor.head -= self.cursor.head % BYTES_PER_LINE;
-		self.cursor.collapse();
+	fn goto_line_start(&mut self) {
+		self.primary_cursor.goto_line_start();
+		
+		for cursor in &mut self.cursors {
+			cursor.goto_line_start();
+		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
 	}
 	
 	fn goto_line_end(&mut self) {
-		self.cursor.head = min(
-			self.cursor.head + BYTES_PER_LINE - 1 - (self.cursor.head % BYTES_PER_LINE),
-			self.max_contents_index()
-		);
-		self.cursor.collapse();
-	}
-	
-	const fn goto_file_start(&mut self, window_size: WindowSize) {
-		self.cursor.head %= BYTES_PER_LINE;
-		self.cursor.collapse();
-		self.clamp_screen_to_cursor(window_size);
-	}
-	
-	const fn goto_file_end(&mut self, window_size: WindowSize) {
-		self.cursor.head = previous_multiple_of(BYTES_PER_LINE, self.contents.len()) +
-			(self.cursor.head % BYTES_PER_LINE);
+		let max_contents_index = self.max_contents_index();
 		
-		self.cursor.collapse();
-		self.clamp_screen_to_cursor(window_size);
+		self.primary_cursor.goto_line_end(max_contents_index);
+		
+		for cursor in &mut self.cursors {
+			cursor.goto_line_end(max_contents_index);
+		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+	}
+	
+	fn goto_file_start(&mut self, window_size: WindowSize) {
+		self.primary_cursor.goto_file_start();
+		
+		for cursor in &mut self.cursors {
+			cursor.goto_file_start();
+		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
+	}
+	
+	fn goto_file_end(&mut self, window_size: WindowSize) {
+		let max_contents_index = self.max_contents_index();
+		
+		self.primary_cursor.goto_file_end(max_contents_index);
+		
+		for cursor in &mut self.cursors {
+			cursor.goto_file_end(max_contents_index);
+		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn scroll_down(&mut self, window_size: WindowSize) {
@@ -260,39 +324,72 @@ impl Buffer {
 			self.scroll_position + BYTES_PER_LINE,
 			self.contents.len() - (5 * BYTES_PER_LINE)
 		);
-		self.cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		
+		self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		self.combine_cursors_if_overlapping();
 	}
 	
 	fn scroll_up(&mut self, window_size: WindowSize) {
 		self.scroll_position = self.scroll_position.saturating_sub(BYTES_PER_LINE);
-		self.cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		self.combine_cursors_if_overlapping();
 	}
 	
 	fn page_cursor_half_down(&mut self, window_size: WindowSize) {
 		if self.contents.len() <= 5 * BYTES_PER_LINE { return; }
 		
-		let head_offset = self.cursor.head - self.scroll_position;
-		let tail_offset = self.cursor.tail - self.scroll_position;
+		let old_scroll_position = self.scroll_position;
 		
 		self.scroll_position = min(
 			self.scroll_position + (window_size.visible_byte_count() / 2).next_multiple_of(BYTES_PER_LINE),
 			self.contents.len() - (5 * BYTES_PER_LINE)
 		);
 		
-		self.cursor.head = (self.scroll_position + head_offset).min(self.max_contents_index());
-		self.cursor.tail = (self.scroll_position + tail_offset).min(self.max_contents_index());
+		let scroll_position_change = self.scroll_position - old_scroll_position;
+		let max_contents_index = self.max_contents_index();
+		
+		self.primary_cursor.head = min(
+			self.primary_cursor.head + scroll_position_change,
+			max_contents_index
+		);
+		self.primary_cursor.tail = min(
+			self.primary_cursor.tail + scroll_position_change,
+			max_contents_index
+		);
+		
+		for cursor in &mut self.cursors {
+			cursor.head = (cursor.head + scroll_position_change).min(max_contents_index);
+			cursor.tail = (cursor.tail + scroll_position_change).min(max_contents_index);
+		}
+		
+		self.combine_cursors_if_overlapping();
 	}
 	
 	fn page_cursor_half_up(&mut self, window_size: WindowSize) {
-		let head_offset = self.cursor.head - self.scroll_position;
-		let tail_offset = self.cursor.tail - self.scroll_position;
+		let old_scroll_position = self.scroll_position;
 		
 		self.scroll_position = self.scroll_position.saturating_sub(
 			(window_size.visible_byte_count() / 2).next_multiple_of(BYTES_PER_LINE)
 		);
 		
-		self.cursor.head = (self.scroll_position + head_offset).min(self.max_contents_index());
-		self.cursor.tail = (self.scroll_position + tail_offset).min(self.max_contents_index());
+		let scroll_position_change = old_scroll_position - self.scroll_position;
+		let max_contents_index = self.max_contents_index();
+		
+		self.primary_cursor.head = min(
+			self.primary_cursor.head - scroll_position_change,
+			max_contents_index
+		);
+		self.primary_cursor.tail = min(
+			self.primary_cursor.tail - scroll_position_change,
+			max_contents_index
+		);
+		
+		for cursor in &mut self.cursors {
+			cursor.head = (cursor.head - scroll_position_change).min(max_contents_index);
+			cursor.tail = (cursor.tail - scroll_position_change).min(max_contents_index);
+		}
+		
+		self.combine_cursors_if_overlapping();
 	}
 	
 	fn page_down(&mut self, window_size: WindowSize) {
@@ -302,90 +399,147 @@ impl Buffer {
 			self.scroll_position + window_size.visible_byte_count(),
 			self.contents.len() - (5 * BYTES_PER_LINE)
 		);
-		self.cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		
+		self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		self.combine_cursors_if_overlapping();
 	}
 	
 	fn page_up(&mut self, window_size: WindowSize) {
 		self.scroll_position = self.scroll_position.saturating_sub(
 			window_size.visible_byte_count()
 		);
-		self.cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		
+		self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
+		self.combine_cursors_if_overlapping();
 	}
 	
 	fn move_next_word_start(&mut self, window_size: WindowSize) {
-		self.cursor.move_to_next_word(self.max_contents_index());
-		self.clamp_screen_to_cursor(window_size);
+		let max_contents_index = self.max_contents_index();
+		
+		self.primary_cursor.move_to_next_word(max_contents_index);
+		
+		for cursor in &mut self.cursors {
+			cursor.move_to_next_word(max_contents_index);
+		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn move_next_word_end(&mut self, window_size: WindowSize) {
-		self.cursor.move_to_next_end(self.max_contents_index());
-		self.clamp_screen_to_cursor(window_size);
+		let max_contents_index = self.max_contents_index();
+		
+		self.primary_cursor.move_to_next_end(max_contents_index);
+		
+		for cursor in &mut self.cursors {
+			cursor.move_to_next_end(max_contents_index);
+		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
-	const fn move_previous_word_start(&mut self, window_size: WindowSize) {
-		self.cursor.move_to_previous_beginning();
-		self.clamp_screen_to_cursor(window_size);
+	fn move_previous_word_start(&mut self, window_size: WindowSize) {
+		self.primary_cursor.move_to_previous_beginning();
+		
+		for cursor in &mut self.cursors {
+			cursor.move_to_previous_beginning();
+		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn extend_next_word_start(&mut self, window_size: WindowSize) {
-		self.cursor.extend_to_next_word(self.max_contents_index());
-		self.clamp_screen_to_cursor(window_size);
+		let max_contents_index = self.max_contents_index();
+		
+		self.primary_cursor.extend_to_next_word(max_contents_index);
+		
+		for cursor in &mut self.cursors {
+			cursor.extend_to_next_word(max_contents_index);
+		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn extend_next_word_end(&mut self, window_size: WindowSize) {
-		self.cursor.extend_to_next_end(self.max_contents_index());
-		self.clamp_screen_to_cursor(window_size);
-	}
-	
-	const fn extend_previous_word_start(&mut self, window_size: WindowSize) {
-		self.cursor.extend_to_previous_beginning();
-		self.clamp_screen_to_cursor(window_size);
-	}
-	
-	const fn collapse_selection(&mut self) {
-		self.cursor.collapse();
-	}
-	
-	fn extend_line_below(&mut self) {
-		if self.cursor.tail > self.cursor.head {
-			swap(&mut self.cursor.head, &mut self.cursor.tail);
-		}
+		let max_contents_index = self.max_contents_index();
 		
-		if self.cursor.tail.is_multiple_of(BYTES_PER_LINE) &&
-           self.cursor.head % BYTES_PER_LINE == BYTES_PER_LINE - 1
-		{
-			self.cursor.head = min(
-				self.cursor.head + BYTES_PER_LINE,
-				self.max_contents_index()
-			);
-		} else {
-			self.cursor.tail -= self.cursor.tail % BYTES_PER_LINE;
-			self.cursor.head += BYTES_PER_LINE - 1 - (self.cursor.head % BYTES_PER_LINE);
+		self.primary_cursor.extend_to_next_end(max_contents_index);
+		
+		for cursor in &mut self.cursors {
+			cursor.extend_to_next_end(max_contents_index);
+		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
+	}
+	
+	fn extend_previous_word_start(&mut self, window_size: WindowSize) {
+		self.primary_cursor.extend_to_previous_beginning();
+		
+		for cursor in &mut self.cursors {
+			cursor.extend_to_previous_beginning();
+		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
+	}
+	
+	fn collapse_selection(&mut self) {
+		self.primary_cursor.collapse();
+		
+		for cursor in &mut self.cursors {
+			cursor.collapse();
 		}
 	}
 	
-	const fn extend_line_above(&mut self) {
-		if self.cursor.head > self.cursor.tail {
-			swap(&mut self.cursor.head, &mut self.cursor.tail);
-		}
+	fn extend_line_below(&mut self, window_size: WindowSize) {
+		let max_contents_index = self.max_contents_index();
 		
-		if self.cursor.head.is_multiple_of(BYTES_PER_LINE) &&
-		   (self.cursor.tail % BYTES_PER_LINE == BYTES_PER_LINE - 1 ||
-		    self.cursor.tail == self.max_contents_index())
-		{
-			self.cursor.head = self.cursor.head.saturating_sub(BYTES_PER_LINE);
-		} else {
-			self.cursor.head -= self.cursor.head % BYTES_PER_LINE;
-			self.cursor.tail += BYTES_PER_LINE - 1 - (self.cursor.tail % BYTES_PER_LINE);
+		self.primary_cursor.extend_line_below(max_contents_index);
+		
+		for cursor in &mut self.cursors {
+			cursor.extend_line_below(max_contents_index);
 		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
+	}
+	
+	fn extend_line_above(&mut self, window_size: WindowSize) {
+		let max_contents_index = self.max_contents_index();
+		
+		self.primary_cursor.extend_line_above(max_contents_index);
+		
+		for cursor in &mut self.cursors {
+			cursor.extend_line_above(max_contents_index);
+		}
+		self.cursors.sort_by_key(|cursor| cursor.head);
+		
+		self.combine_cursors_if_overlapping();
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn delete(&mut self) {
 		if !self.contents.is_empty() {
 			self.execute_and_add(
 				EditAction::Delete {
-					cursor: self.cursor,
-					old_data: self.contents[self.cursor.range()].into()
+					primary_cursor: self.primary_cursor,
+					cursors: self.cursors.clone(),
+					primary_old_data: self.contents[self.primary_cursor.range()].into(),
+					old_data: self.cursors
+						.iter()
+						.map(|cursor| self.contents[cursor.range()].to_vec())
+						.collect(),
 				}
 			);
 		}
@@ -446,20 +600,15 @@ impl Buffer {
 
 // helpers
 impl Buffer {
-	const fn clamp_screen_to_cursor(&mut self, window_size: WindowSize) {
-		if self.cursor.head < self.scroll_position {
-			self.scroll_position -= (self.scroll_position - self.cursor.head).next_multiple_of(BYTES_PER_LINE);
-		} else if self.cursor.head > self.scroll_position + window_size.visible_byte_count() - 1 {
-			let screen_edge_offset_to_cursor = self.cursor.head - (self.scroll_position + window_size.visible_byte_count() - 1);
+	const fn clamp_screen_to_primary_cursor(&mut self, window_size: WindowSize) {
+		if self.primary_cursor.head < self.scroll_position {
+			self.scroll_position -= (self.scroll_position - self.primary_cursor.head)
+				.next_multiple_of(BYTES_PER_LINE);
+		} else if self.primary_cursor.head > self.scroll_position + window_size.visible_byte_count() - 1 {
+			let screen_edge_offset_to_cursor = self.primary_cursor.head - (
+				self.scroll_position + window_size.visible_byte_count() - 1
+			);
 			self.scroll_position += screen_edge_offset_to_cursor.next_multiple_of(BYTES_PER_LINE);
 		}
-	}
-}
-
-const fn previous_multiple_of(multiple: usize, number: usize) -> usize {
-	if number == 0 {
-		0
-	} else {
-		(number - 1) - ((number - 1) % multiple)
 	}
 }
