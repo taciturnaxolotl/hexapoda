@@ -3,6 +3,7 @@
 #![feature(get_disjoint_mut_helpers)]
 #![feature(exact_bitshifts)]
 #![feature(hash_set_entry)]
+#![feature(trim_prefix_suffix)]
 
 use app::App;
 use crossterm::{QueueableCommand, event::{DisableMouseCapture, EnableMouseCapture}};
@@ -26,13 +27,11 @@ const LINES_OF_PADDING: usize = 5;
 const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 
 // TODO:
-// - 4 with large selection crashes
-//   - also ( and )
-//   - also C-F in excavate_defs
 // - search
 //   - ascii and bytes (`/` and `A-/`?)
 // - diffing
 // - s/A-k/A-K
+//   - sm select marks
 // - C-a/C-x
 // - modifications
 //   - insert/append

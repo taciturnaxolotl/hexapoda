@@ -165,23 +165,23 @@ impl Buffer {
 			
 			BufferAction::Save => self.save(),
 			
-			BufferAction::CopySelectionOnNextLine => self.copy_selection_on_next_line(),
+			BufferAction::CopySelectionOnNextLine => self.copy_selection_on_next_line(window_size),
 			
-			BufferAction::RotateSelectionsBackward => self.rotate_selections_backward(),
-			BufferAction::RotateSelectionsForward => self.rotate_selections_forward(),
+			BufferAction::RotateSelectionsBackward => self.rotate_selections_backward(window_size),
+			BufferAction::RotateSelectionsForward => self.rotate_selections_forward(window_size),
 			
 			BufferAction::KeepPrimarySelection => self.keep_primary_selection(),
 			BufferAction::RemovePrimarySelection => self.remove_primary_selection(),
 			
-			BufferAction::SplitSelectionsInto1s => self.split_selections_into_size(1),
-			BufferAction::SplitSelectionsInto2s => self.split_selections_into_size(2),
-			BufferAction::SplitSelectionsInto3s => self.split_selections_into_size(3),
-			BufferAction::SplitSelectionsInto4s => self.split_selections_into_size(4),
-			BufferAction::SplitSelectionsInto5s => self.split_selections_into_size(5),
-			BufferAction::SplitSelectionsInto6s => self.split_selections_into_size(6),
-			BufferAction::SplitSelectionsInto7s => self.split_selections_into_size(7),
-			BufferAction::SplitSelectionsInto8s => self.split_selections_into_size(8),
-			BufferAction::SplitSelectionsInto9s => self.split_selections_into_size(9),
+			BufferAction::SplitSelectionsInto1s => self.split_selections_into_size(1, window_size),
+			BufferAction::SplitSelectionsInto2s => self.split_selections_into_size(2, window_size),
+			BufferAction::SplitSelectionsInto3s => self.split_selections_into_size(3, window_size),
+			BufferAction::SplitSelectionsInto4s => self.split_selections_into_size(4, window_size),
+			BufferAction::SplitSelectionsInto5s => self.split_selections_into_size(5, window_size),
+			BufferAction::SplitSelectionsInto6s => self.split_selections_into_size(6, window_size),
+			BufferAction::SplitSelectionsInto7s => self.split_selections_into_size(7, window_size),
+			BufferAction::SplitSelectionsInto8s => self.split_selections_into_size(8, window_size),
+			BufferAction::SplitSelectionsInto9s => self.split_selections_into_size(9, window_size),
 			
 			BufferAction::JumpToSelectedOffset => self.jump_to_selected_offset(window_size),
 			BufferAction::JumpToSelectedOffsetRelativeToMark => self.jump_to_selected_offset_relative_to_mark(window_size),
@@ -328,7 +328,7 @@ impl Buffer {
 		
 		self.scroll_position = min(
 			self.scroll_position + window_size.visible_byte_count(),
-			self.contents.len() - BYTES_OF_PADDING - self.contents.len() % BYTES_PER_LINE
+			self.max_contents_index() - BYTES_OF_PADDING - self.max_contents_index() % BYTES_PER_LINE
 		);
 		
 		if window_size.hex_rows() > LINES_OF_PADDING * 2 {
@@ -445,7 +445,7 @@ impl Buffer {
 		);
 	}
 	
-	fn copy_selection_on_next_line(&mut self) {
+	fn copy_selection_on_next_line(&mut self, window_size: WindowSize) {
 		let new_cursors: Vec<Cursor> = iter::once(&self.primary_cursor)
 			.chain(&self.cursors)
 			.filter_map(|cursor| {
@@ -470,10 +470,10 @@ impl Buffer {
 		
 		self.combine_cursors_if_overlapping();
 		
-		self.rotate_selections_forward();
+		self.rotate_selections_forward(window_size);
 	}
 	
-	fn rotate_selections_backward(&mut self) {
+	fn rotate_selections_backward(&mut self, window_size: WindowSize) {
 		if self.cursors.is_empty() { return; }
 		
 		let next_cursor_index = self.cursors
@@ -489,9 +489,11 @@ impl Buffer {
 		} else {
 			swap(&mut self.primary_cursor, &mut self.cursors[next_cursor_index - 1]);
 		}
+		
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
-	fn rotate_selections_forward(&mut self) {
+	fn rotate_selections_forward(&mut self, window_size: WindowSize) {
 		if self.cursors.is_empty() { return; }
 		
 		let next_cursor_index = self.cursors
@@ -505,6 +507,8 @@ impl Buffer {
 		} else {
 			swap(&mut self.primary_cursor, &mut self.cursors[next_cursor_index]);
 		}
+		
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn keep_primary_selection(&mut self) {
@@ -525,7 +529,7 @@ impl Buffer {
 		}
 	}
 	
-	fn split_selections_into_size(&mut self, size: usize) {
+	fn split_selections_into_size(&mut self, size: usize, window_size: WindowSize) {
 		if !iter::once(&self.primary_cursor)
 			.chain(&self.cursors)
 			.all(|cursor| cursor.len().is_multiple_of(size))
@@ -547,6 +551,8 @@ impl Buffer {
 		
 		self.primary_cursor = new_cursors.next().unwrap();
 		self.cursors = new_cursors.collect();
+		
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn jump_to_selected_offset(&mut self, window_size: WindowSize) {
@@ -769,12 +775,8 @@ impl Buffer {
 						.map(|int| Span::from(format!("{int}")).white());
 					
 					let utf8 = str::from_utf8(selection).ok()
-						.and_then(|utf8| {
-							utf8
-								.contains(character_is_allowed_in_strings)
-								.then_some(utf8)
-						})
-						.map(|utf8| utf8.replace('\0', "\\0"))
+						.map(|utf8| utf8.trim_suffix('\0'))
+						.filter(|utf8| !utf8.contains(is_illegal_control_character))
 						.map(|utf8| Span::from(format!("\"{utf8}\"")).red());
 					
 					#[allow(clippy::cast_precision_loss)]
@@ -927,10 +929,10 @@ fn mark_after(offset: usize, sorted_marks: &[usize], max: usize) -> usize {
 	}
 }
 
-const fn character_is_allowed_in_strings(character: char) -> bool {
+const fn is_illegal_control_character(character: char) -> bool {
 	match character {
-		'\0' | '\t' | '\n' | '\r' => true,
-		_ if character.is_ascii_control() => false,
-		_ => true,
+		'\t' | '\n' | '\r' => false,
+		_ if character.is_ascii_control() => true,
+		_ => false,
 	}
 }
