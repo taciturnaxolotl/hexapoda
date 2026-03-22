@@ -70,6 +70,9 @@ impl App {
 		match event::read().unwrap() {
 			Event::Resize(_, height) => {
 				self.window_size.rows = height as usize;
+				
+				self.buffers[self.current_buffer_index]
+					.clamp_screen_to_primary_cursor(self.window_size);
 			}
 			Event::Key(key_event) => self.handle_key(key_event, terminal),
 			Event::Mouse(mouse_event) => self.handle_mouse(mouse_event),
@@ -195,20 +198,18 @@ impl App {
 	}
 	
 	fn yank(&mut self) {
-		self.primary_cursor_register = self.current_buffer()
-			.contents[self.current_buffer().primary_cursor.range()]
+		let current_buffer = &self.buffers[self.current_buffer_index];
+		
+		self.primary_cursor_register = current_buffer
+			.contents[current_buffer.primary_cursor.range()]
 			.to_vec();
 		
-		self.other_cursor_registers = self.current_buffer().cursors
+		self.other_cursor_registers = current_buffer.cursors
 			.iter()
 			.map(|cursor| {
-				self.current_buffer().contents[cursor.range()].to_vec()
+				current_buffer.contents[cursor.range()].to_vec()
 			})
 			.collect();
-	}
-	
-	pub fn current_buffer(&self) -> &Buffer {
-		&self.buffers[self.current_buffer_index]
 	}
 }
 

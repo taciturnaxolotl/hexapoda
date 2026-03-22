@@ -27,8 +27,7 @@ const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 
 // TODO:
 // - inspect selection
-// - resizing can move the cursor off the screen
-// - tab bar overflow
+// - diffing
 // - search
 // - s/A-k/A-K
 // - C-a/C-x
@@ -53,9 +52,9 @@ const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 //   - how to fit??! `-128` longer than `80`
 //   - popup for different readings for the selected bytes
 // - utf8?
-// - diffing
 
-// when AsciiChar is stabilized, use it instead of char everywhere
+// when AsciiChar is stabilized, use it instead of char
+// - actually since im using nightly already, do this
 
 fn main() {
 	let mut app = App::new();
