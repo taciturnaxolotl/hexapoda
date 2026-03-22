@@ -26,9 +26,6 @@ const LINES_OF_PADDING: usize = 5;
 const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 
 // TODO:
-// - extend to mark (tm?)
-//   - t0 can be to next null
-//   - tf can be to next FF
 // - inspect selection
 // - resizing can move the cursor off the screen
 // - tab bar overflow

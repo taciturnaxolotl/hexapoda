@@ -107,6 +107,7 @@ impl Default for Config {
 					("r".try_into().unwrap(), BufferAction::Replace.into()),
 					(" ".try_into().unwrap(), BufferAction::Space.into()),
 					("*".try_into().unwrap(), BufferAction::Repeat.into()),
+					("t".try_into().unwrap(), BufferAction::To.into()),
 					
 					("i".try_into().unwrap(), CursorAction::MoveByteUp.into()),
 					("k".try_into().unwrap(), CursorAction::MoveByteDown.into()),
@@ -207,6 +208,11 @@ impl Default for Config {
 					
 					("C".try_into().unwrap(), BufferAction::CopySelectionOnNextLine.into()),
 				].into()),
+				(Some(PartialAction::To), [
+					("m".try_into().unwrap(), BufferAction::ExtendToMark.into()),
+					("0".try_into().unwrap(), BufferAction::ExtendToNull.into()),
+					("f".try_into().unwrap(), BufferAction::ExtendToFF.into()),
+				].into()),
 			].into()),
 			(Mode::Select, [
 				(None, [
@@ -220,6 +226,7 @@ impl Default for Config {
 					("r".try_into().unwrap(), BufferAction::Replace.into()),
 					(" ".try_into().unwrap(), BufferAction::Space.into()),
 					("*".try_into().unwrap(), BufferAction::Repeat.into()),
+					("t".try_into().unwrap(), BufferAction::To.into()),
 					
 					("i".try_into().unwrap(), CursorAction::ExtendByteUp.into()),
 					("k".try_into().unwrap(), CursorAction::ExtendByteDown.into()),
@@ -308,6 +315,11 @@ impl Default for Config {
 					("d".try_into().unwrap(), BufferAction::Delete.into()),
 					
 					("C".try_into().unwrap(), BufferAction::CopySelectionOnNextLine.into()),
+				].into()),
+				(Some(PartialAction::To), [
+					("m".try_into().unwrap(), BufferAction::ExtendToMark.into()),
+					("0".try_into().unwrap(), BufferAction::ExtendToNull.into()),
+					("f".try_into().unwrap(), BufferAction::ExtendToFF.into()),
 				].into()),
 			].into())
 		].into()

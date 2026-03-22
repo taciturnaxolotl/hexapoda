@@ -40,7 +40,7 @@ pub enum Mode {
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub enum PartialAction {
-	Goto, View, Replace, Space, Repeat
+	Goto, View, Replace, Space, Repeat, To
 }
 
 impl Mode {
@@ -69,6 +69,7 @@ impl PartialAction {
 			Self::Replace => "r",
 			Self::Space => "␠",
 			Self::Repeat => "×",
+			Self::To => "t",
 		}
 	}
 }

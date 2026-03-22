@@ -37,6 +37,7 @@ pub enum BufferAction {
 	Replace,
 	Space,
 	Repeat,
+	To,
 	
 	ScrollDown,
 	ScrollUp,
@@ -83,6 +84,10 @@ pub enum BufferAction {
 	AlignViewCenter,
 	AlignViewBottom,
 	AlignViewTop,
+	
+	ExtendToMark,
+	ExtendToNull,
+	ExtendToFF,
 }
 
 impl From<BufferAction> for Action {
@@ -137,6 +142,7 @@ impl Buffer {
 			BufferAction::Replace => self.replace(),
 			BufferAction::Space => self.space(),
 			BufferAction::Repeat => self.repeat(),
+			BufferAction::To => self.to(),
 			
 			BufferAction::ScrollDown => self.scroll_down(window_size),
 			BufferAction::ScrollUp => self.scroll_up(window_size),
@@ -148,7 +154,7 @@ impl Buffer {
 			BufferAction::PageUp => self.page_up(window_size),
 			
 			BufferAction::CollapseSelection => self.collapse_selection(),
-			BufferAction::FlipSelections => self.flip_selection(),
+			BufferAction::FlipSelections => self.flip_selection(window_size),
 			
 			BufferAction::Delete => self.delete(window_size),
 			
@@ -183,6 +189,10 @@ impl Buffer {
 			BufferAction::AlignViewCenter => self.align_view_center(window_size),
 			BufferAction::AlignViewBottom => self.align_view_bottom(window_size),
 			BufferAction::AlignViewTop => self.align_view_top(),
+			
+			BufferAction::ExtendToMark => self.extend_to_mark(window_size),
+			BufferAction::ExtendToNull => self.extend_to_null(window_size),
+			BufferAction::ExtendToFF => self.extend_to_FF(window_size),
 		}
 	}
 	
@@ -214,6 +224,10 @@ impl Buffer {
 	
 	const fn repeat(&mut self) {
 		self.partial_action = Some(PartialAction::Repeat);
+	}
+	
+	const fn to(&mut self) {
+		self.partial_action = Some(PartialAction::To);
 	}
 	
 	pub fn scroll_down(&mut self, window_size: WindowSize) {
@@ -348,12 +362,14 @@ impl Buffer {
 		}
 	}
 	
-	fn flip_selection(&mut self) {
+	fn flip_selection(&mut self, window_size: WindowSize) {
 		self.primary_cursor.flip();
 		
 		for cursor in &mut self.cursors {
 			cursor.flip();
 		}
+		
+		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
 	fn delete(&mut self, window_size: WindowSize) {
@@ -651,6 +667,84 @@ impl Buffer {
 			.saturating_sub(self.primary_cursor.head % BYTES_PER_LINE)
 			.saturating_sub(BYTES_OF_PADDING);
 	}
+	
+	fn extend_to_mark(&mut self, window_size: WindowSize) {
+		let mut sorted_marks: Vec<_> = self.marks.iter().copied().collect();
+		sorted_marks.sort_unstable();
+		
+		let max_contents_index = self.max_contents_index();
+		
+		let mark_after_primary = mark_after(
+			self.primary_cursor.head + 1,
+			&sorted_marks,
+			max_contents_index
+		);
+		
+		self.primary_cursor.tail = self.primary_cursor.head;
+		self.primary_cursor.head = mark_after_primary - 1;
+		
+		for cursor in &mut self.cursors {
+			let mark_after_cursor = mark_after(
+				cursor.head + 1,
+				&sorted_marks,
+				max_contents_index
+			);
+			
+			cursor.tail = cursor.head;
+			cursor.head = mark_after_cursor - 1;
+		}
+		
+		self.clamp_screen_to_primary_cursor(window_size);
+	}
+	
+	fn extend_to_null(&mut self, window_size: WindowSize) {
+		if let Some(null_offset_after_primary) = self.contents[self.primary_cursor.head..]
+			.iter()
+			.skip(2)
+			.position(|&byte| byte == 0)
+		{
+			self.primary_cursor.tail = self.primary_cursor.head;
+			self.primary_cursor.head += null_offset_after_primary + 1;
+		}
+		
+		for cursor in &mut self.cursors {
+			if let Some(null_offset_after_primary) = self.contents[cursor.head..]
+				.iter()
+				.skip(2)
+				.position(|&byte| byte == 0)
+			{
+				cursor.tail = cursor.head;
+				cursor.head += null_offset_after_primary + 1;
+			}
+		}
+		
+		self.clamp_screen_to_primary_cursor(window_size);
+	}
+	
+	#[allow(non_snake_case)]
+	fn extend_to_FF(&mut self, window_size: WindowSize) {
+		if let Some(null_offset_after_primary) = self.contents[self.primary_cursor.head..]
+			.iter()
+			.skip(2)
+			.position(|&byte| byte == 0xFF)
+		{
+			self.primary_cursor.tail = self.primary_cursor.head;
+			self.primary_cursor.head += null_offset_after_primary + 1;
+		}
+		
+		for cursor in &mut self.cursors {
+			if let Some(null_offset_after_primary) = self.contents[cursor.head..]
+				.iter()
+				.skip(2)
+				.position(|&byte| byte == 0xFF)
+			{
+				cursor.tail = cursor.head;
+				cursor.head += null_offset_after_primary + 1;
+			}
+		}
+		
+		self.clamp_screen_to_primary_cursor(window_size);
+	}
 }
 
 // helpers
@@ -680,5 +774,25 @@ fn mark_before(offset: usize, sorted_marks: &[usize]) -> usize {
 		Ok(_) => offset,
 		Err(0) => 0,
 		Err(mark_after_index) => sorted_marks[mark_after_index - 1],
+	}
+}
+
+// or end index if no mark is after
+fn mark_after(offset: usize, sorted_marks: &[usize], max: usize) -> usize {
+	if sorted_marks.is_empty() { return max + 1; }
+	
+	match sorted_marks.binary_search(&offset) {
+		Ok(mark_before_index) => if mark_before_index == sorted_marks.len() - 1 {
+			max + 1
+		} else {
+			sorted_marks[mark_before_index + 1]
+		},
+		Err(mark_after_index) => {
+			if mark_after_index == sorted_marks.len() {
+				max + 1
+			} else {
+				sorted_marks[mark_after_index]
+			}
+		},
 	}
 }
