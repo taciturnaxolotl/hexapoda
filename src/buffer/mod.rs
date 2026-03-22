@@ -1,7 +1,7 @@
 use core::slice::GetDisjointMutIndex;
 use std::{collections::HashSet, fs::File, io::Read, path::PathBuf};
 use crossterm::event::KeyEvent;
-use ratatui::{layout::Rect, style::{Color, Stylize}, text::Span, widgets::Widget};
+use ratatui::{layout::{Constraint, Rect}, style::{Color, Stylize}, text::Span, widgets::{Block, Clear, Widget}};
 use crate::{BYTES_PER_LINE, action::{Action, AppAction, bytes_to_nat}, app::WindowSize, config::Config, cursor::Cursor, edit_action::EditAction};
 
 mod widget;
@@ -50,8 +50,7 @@ pub enum PartialAction {
 pub struct Popup {
 	at: usize,
 	width: u16,
-	lines: Vec<String>,
-	color: Option<[u8; 3]>
+	lines: Vec<Span<'static>>
 }
 
 impl Mode {
@@ -86,48 +85,41 @@ impl PartialAction {
 }
 
 impl Popup {
-	pub fn new(at: usize, lines: Vec<String>, color: Option<[u8; 3]>) -> Self {
+	pub fn new(at: usize, lines: Vec<Span<'static>>) -> Self {
 		Self {
 			at,
 			width: lines
 				.iter()
-				.map(|line| line.len() as u16)
-				.chain(color.map(|_| 7))
+				.map(|line| line.width() as u16)
 				.max()
 				.unwrap_or(0),
-			lines,
-			color
+			lines
 		}
 	}
 	
-	fn area_at(&self, x: u16, y: u16) -> Rect {
+	const fn area_at(&self, x: u16, y: u16) -> Rect {
 		Rect {
 			x,
 			y,
 			width: self.width + 2,
-			height: self.lines.len() as u16 + u16::from(self.color.is_some())
+			height: self.lines.len() as u16
 		}
 	}
 }
 
 impl Widget for Popup {
 	fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-		let width = self.width as usize;
-		
 		for (line, area) in self.lines.iter().zip(area.rows()) {
-			Span::from(format!(" {line:^width$} "))
-				.white()
+			Clear.render(area, buf);
+			
+			Block::new()
 				.on_dark_gray()
 				.render(area, buf);
-		}
-		
-		if let Some([red, green, blue]) = self.color {
-			let color_code = format!("#{red:02X}{green:02X}{blue:02X}");
 			
-			Span::from(format!(" {color_code:^width$} "))
-				.fg(Color::Rgb(red, green, blue))
-				.on_dark_gray()
-				.render(area.rows().next_back().unwrap(), buf);
+			line.render(
+				area.centered_horizontally(Constraint::Length(line.width() as u16)),
+				buf
+			);
 		}
 	}
 }

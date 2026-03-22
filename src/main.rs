@@ -27,10 +27,11 @@ const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 
 // TODO:
 // - 4 with large selection crashes
-//   - also (/)
+//   - also ( and )
 //   - also C-F in excavate_defs
-// - diffing
 // - search
+//   - ascii and bytes (`/` and `A-/`?)
+// - diffing
 // - s/A-k/A-K
 // - C-a/C-x
 // - modifications
@@ -52,11 +53,6 @@ const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 // future directions
 // - 'views' for bytes (i8/16/etc u8/16/etc 20.12/8.4/etc)
 //   - how to fit??! `-128` longer than `80`
-//   - popup for different readings for the selected bytes
-// - utf8?
-
-// when AsciiChar is stabilized, use it instead of char
-// - actually since im using nightly already, do this
 
 fn main() {
 	let mut app = App::new();

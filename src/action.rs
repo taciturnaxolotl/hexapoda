@@ -1,5 +1,5 @@
 use std::{cmp::min, collections::hash_set::Entry, convert::identity, fs::File, io::Write, iter, mem::{replace, swap}};
-use ratatui::{style::Stylize, text::Span};
+use ratatui::{style::{Color, Stylize}, text::Span};
 use crate::{BYTES_OF_PADDING, BYTES_PER_LINE, LINES_OF_PADDING, app::WindowSize, buffer::{Buffer, Mode, PartialAction, Popup}, cursor::Cursor, edit_action::EditAction};
 
 #[derive(Clone, Copy)]
@@ -680,7 +680,7 @@ impl Buffer {
 		let max_contents_index = self.max_contents_index();
 		
 		let mark_after_primary = mark_after(
-			self.primary_cursor.head + 1,
+			self.primary_cursor.head,
 			&sorted_marks,
 			max_contents_index
 		);
@@ -690,7 +690,7 @@ impl Buffer {
 		
 		for cursor in &mut self.cursors {
 			let mark_after_cursor = mark_after(
-				cursor.head + 1,
+				cursor.head,
 				&sorted_marks,
 				max_contents_index
 			);
@@ -705,21 +705,21 @@ impl Buffer {
 	fn extend_to_null(&mut self, window_size: WindowSize) {
 		if let Some(null_offset_after_primary) = self.contents[self.primary_cursor.head..]
 			.iter()
-			.skip(2)
+			.skip(1)
 			.position(|&byte| byte == 0)
 		{
 			self.primary_cursor.tail = self.primary_cursor.head;
-			self.primary_cursor.head += null_offset_after_primary + 1;
+			self.primary_cursor.head += null_offset_after_primary;
 		}
 		
 		for cursor in &mut self.cursors {
 			if let Some(null_offset_after_primary) = self.contents[cursor.head..]
 				.iter()
-				.skip(2)
+				.skip(1)
 				.position(|&byte| byte == 0)
 			{
 				cursor.tail = cursor.head;
-				cursor.head += null_offset_after_primary + 1;
+				cursor.head += null_offset_after_primary;
 			}
 		}
 		
@@ -730,21 +730,21 @@ impl Buffer {
 	fn extend_to_FF(&mut self, window_size: WindowSize) {
 		if let Some(null_offset_after_primary) = self.contents[self.primary_cursor.head..]
 			.iter()
-			.skip(2)
+			.skip(1)
 			.position(|&byte| byte == 0xFF)
 		{
 			self.primary_cursor.tail = self.primary_cursor.head;
-			self.primary_cursor.head += null_offset_after_primary + 1;
+			self.primary_cursor.head += null_offset_after_primary;
 		}
 		
 		for cursor in &mut self.cursors {
 			if let Some(null_offset_after_primary) = self.contents[cursor.head..]
 				.iter()
-				.skip(2)
+				.skip(1)
 				.position(|&byte| byte == 0xFF)
 			{
 				cursor.tail = cursor.head;
-				cursor.head += null_offset_after_primary + 1;
+				cursor.head += null_offset_after_primary;
 			}
 		}
 		
@@ -764,17 +764,18 @@ impl Buffer {
 					
 					let nat = bytes_to_nat(selection);
 					
-					let int = nat.and_then(|nat| nat_to_int_if_different(nat, selection.len()));
+					let int = nat
+						.and_then(|nat| nat_to_int_if_different(nat, selection.len()))
+						.map(|int| Span::from(format!("{int}")).white());
 					
 					let utf8 = str::from_utf8(selection).ok()
 						.and_then(|utf8| {
-							if utf8.contains(|char: char| char.is_ascii() && !char.is_ascii_graphic()) {
-								None
-							} else {
-								Some(utf8)
-							}
+							utf8
+								.contains(character_is_allowed_in_strings)
+								.then_some(utf8)
 						})
-						.map(|utf8| utf8.replace('\0', "\\0"));
+						.map(|utf8| utf8.replace('\0', "\\0"))
+						.map(|utf8| Span::from(format!("\"{utf8}\"")).red());
 					
 					#[allow(clippy::cast_precision_loss)]
 					let fixedpoint2012 = nat
@@ -783,7 +784,7 @@ impl Buffer {
 							let two_decimals_is_enough = (fixedpoint2012 * 100.0).fract() == 0.0;
 							let approximate_symbol = if two_decimals_is_enough { "" } else { "~" };
 							
-							format!("20.12: {approximate_symbol}{fixedpoint2012:.2}")
+							format!("20.12: {approximate_symbol}{fixedpoint2012:.2}").into()
 						});
 					
 					#[allow(clippy::cast_precision_loss)]
@@ -793,7 +794,7 @@ impl Buffer {
 							let two_decimals_is_enough = (fixedpoint1616 * 100.0).fract() == 0.0;
 							let approximate_symbol = if two_decimals_is_enough { "" } else { "~" };
 							
-							format!("16.16: {approximate_symbol}{fixedpoint1616:.2}")
+							format!("16.16: {approximate_symbol}{fixedpoint1616:.2}").into()
 						});
 					
 					#[allow(clippy::cast_precision_loss)]
@@ -803,7 +804,7 @@ impl Buffer {
 							let two_decimals_is_enough = (fixedpoint124 * 100.0).fract() == 0.0;
 							let approximate_symbol = if two_decimals_is_enough { "" } else { "~" };
 							
-							format!("12.4: {approximate_symbol}{fixedpoint124:.2}")
+							format!("12.4: {approximate_symbol}{fixedpoint124:.2}").into()
 						});
 					
 					#[allow(clippy::cast_precision_loss)]
@@ -813,7 +814,7 @@ impl Buffer {
 							let two_decimals_is_enough = (fixedpoint88 * 100.0).fract() == 0.0;
 							let approximate_symbol = if two_decimals_is_enough { "" } else { "~" };
 							
-							format!("8.8: {approximate_symbol}{fixedpoint88:.2}")
+							format!("8.8: {approximate_symbol}{fixedpoint88:.2}").into()
 						});
 					
 					#[allow(clippy::cast_precision_loss)]
@@ -823,24 +824,30 @@ impl Buffer {
 							let two_decimals_is_enough = (fixedpoint412 * 100.0).fract() == 0.0;
 							let approximate_symbol = if two_decimals_is_enough { "" } else { "~" };
 							
-							format!("4.12: {approximate_symbol}{fixedpoint412:.2}")
+							format!("4.12: {approximate_symbol}{fixedpoint412:.2}").into()
 						});
 					
-					let color = (selection.len() == 3).then(|| [selection[0], selection[1], selection[2]]);
+					let color = (selection.len() == 3)
+						.then(|| [selection[0], selection[1], selection[2]])
+						.map(|[red, green, blue]| {
+							Span::from(format!("#{red:02X}{green:02X}{blue:02X}"))
+								.fg(Color::Rgb(red, green, blue))
+							
+						});
 					
 					Popup::new(
 						cursor.lower_bound(),
-						int.map(|int| format!("{int}"))
+						int
 							.into_iter()
-							.chain(nat.map(|nat| format!("{nat}")))
-							.chain(utf8.map(|utf8| format!("\"{utf8}\"")))
+							.chain(nat.map(|nat| Span::from(format!("{nat}")).white()))
+							.chain(utf8)
 							.chain(fixedpoint2012)
 							.chain(fixedpoint1616)
 							.chain(fixedpoint124)
 							.chain(fixedpoint88)
 							.chain(fixedpoint412)
-							.collect(),
-						color
+							.chain(color)
+							.collect()
 					)
 				})
 		);
@@ -917,5 +924,13 @@ fn mark_after(offset: usize, sorted_marks: &[usize], max: usize) -> usize {
 				sorted_marks[mark_after_index]
 			}
 		},
+	}
+}
+
+const fn character_is_allowed_in_strings(character: char) -> bool {
+	match character {
+		'\0' | '\t' | '\n' | '\r' => true,
+		_ if character.is_ascii_control() => false,
+		_ => true,
 	}
 }

@@ -50,10 +50,12 @@ impl Widget for &Buffer {
 				let position_on_screen = popup.at - self.scroll_position;
 				let hex_column = position_on_screen % BYTES_PER_LINE;
 				
-				let popup_area = popup.area_at(
-					area.x + byte_column_to_screen_column(hex_column) as u16,
-					area.y + (position_on_screen / BYTES_PER_LINE) as u16 + 1
-				);
+				let popup_area = popup
+					.area_at(
+						area.x + byte_column_to_screen_column(hex_column) as u16,
+						area.y + (position_on_screen / BYTES_PER_LINE) as u16 + 1
+					)
+					.clamp(hex_area);
 				
 				popup.clone().render(popup_area, buf);
 			}
