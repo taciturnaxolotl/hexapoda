@@ -188,16 +188,19 @@ mod hex {
 			bytes: &[u8]
 		) -> impl Iterator<Item=Span<'static>> {
 			#[allow(unstable_name_collisions)]
-			bytes
-				.iter()
-				.copied()
-				.zip(address..)
-				.map(|(byte, address)| self.render_byte_at(address, byte))
-				.interleave(
-					(address..)
-						.take(BYTES_PER_CHUNK)
-						.skip(1)
-						.map(|address| self.render_space_before(address))
+			iter::once(self.render_large_space_before(address))
+				.chain(
+					bytes
+						.iter()
+						.copied()
+						.zip(address..)
+						.map(|(byte, address)| self.render_byte_at(address, byte))
+						.interleave(
+							(address..)
+								.take(BYTES_PER_CHUNK)
+								.skip(1)
+								.map(|address| self.render_space_before(address))
+						)
 				)
 		}
 		
