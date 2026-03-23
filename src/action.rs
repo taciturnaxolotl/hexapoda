@@ -90,6 +90,7 @@ pub enum BufferAction {
 	ExtendToFF,
 	
 	InspectSelection,
+	InspectSelectionColor,
 }
 
 impl From<BufferAction> for Action {
@@ -197,6 +198,7 @@ impl Buffer {
 			BufferAction::ExtendToFF => self.extend_to_FF(window_size),
 			
 			BufferAction::InspectSelection => self.inspect_selection(),
+			BufferAction::InspectSelectionColor => self.inspect_selection_color(),
 		}
 	}
 	
@@ -880,6 +882,48 @@ impl Buffer {
 							.chain(fixedpoint88)
 							.chain(fixedpoint412)
 							.chain(color888)
+							.chain(color555)
+							.collect()
+					)
+				})
+		);
+	}
+	
+	fn inspect_selection_color(&mut self) {
+		if self.inspecting_selection { return; }
+		
+		self.inspecting_selection = true;
+		
+		self.popups.extend(
+			iter::once(&self.primary_cursor)
+				.chain(&self.cursors)
+				.map(|cursor| {
+					let selection = &self.contents[cursor.range()];
+					
+					let nat = bytes_to_nat(selection);
+					
+					let color888 = (selection.len() == 3)
+						.then(|| [selection[0], selection[1], selection[2]])
+						.map(|[red, green, blue]| {
+							Span::from(format!("#{red:02X}{green:02X}{blue:02X}"))
+								.fg(Color::Rgb(red, green, blue))
+							
+						});
+					
+					let color555 = nat
+						.filter(|_| selection.len() == 2)
+						.filter(|&nat| nat >> 15 == 0)
+						.map(|nat| color555_to_color888(nat as u16))
+						.map(|[red, green, blue]| {
+							Span::from(format!("#{red:02X}{green:02X}{blue:02X}"))
+								.fg(Color::Rgb(red, green, blue))
+							
+						});
+					
+					Popup::new(
+						cursor.lower_bound(),
+						color888
+							.into_iter()
 							.chain(color555)
 							.collect()
 					)

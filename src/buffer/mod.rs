@@ -170,6 +170,8 @@ impl Buffer {
 		self.alert_message = "".into();
 		self.popups.clear();
 		
+		// self.logs.push(format!("{event:?}"));
+		
 		let was_inspecting_selection = self.inspecting_selection;
 		
 		let app_action = match self.partial_action {
