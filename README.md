@@ -4,6 +4,8 @@ a colorful modal hex editor
 
 (the name comes from [the subphylum](https://wikipedia.org/wiki/Hexapoda))
 
+[![asciicast](https://asciinema.org/a/fsVwqdn846Ar5CQZ.svg)](https://asciinema.org/a/fsVwqdn846Ar5CQZ)
+
 ## status
 
 currently, hexapoda is very unpolished, and missing some major features. if you'd be interested in using it, please let me know! if enough people want, i'd be willing to make it more accessible and write some docs
