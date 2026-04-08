@@ -176,29 +176,43 @@ impl From<KeyCode> for Keypress {
 	}
 }
 
-const fn modifier_from_character(character: char) -> Option<KeyModifiers> {
+fn modifier_from_character(character: char) -> Result<KeyModifiers, String> {
 	match character {
-		'A' => Some(KeyModifiers::ALT),
-		'C' => Some(KeyModifiers::CONTROL),
-		_ => None
+		'C' => Ok(KeyModifiers::CONTROL),
+		'A' => Ok(KeyModifiers::ALT),
+		'S' => Ok(KeyModifiers::SHIFT),
+		_ => Err(format!("unknown modifier: {character}"))
 	}
 }
 
 const fn str_from_modifiers(modifier: KeyModifiers) -> &'static str {
 	match modifier {
-		KeyModifiers::ALT => "A-",
 		KeyModifiers::CONTROL => "C-",
+		KeyModifiers::ALT => "A-",
+		KeyModifiers::SHIFT => "S-",
 		_ => ""
 	}
 }
 
 fn string_from_code(code: KeyCode) -> String {
+	use KeyCode::*;
+	
 	match code {
-		KeyCode::Char(character) => character.to_string(),
-		KeyCode::Up => "Up".to_string(),
-		KeyCode::Down => "Down".to_string(),
-		KeyCode::Left => "Left".to_string(),
-		KeyCode::Right => "Right".to_string(),
+		Char(character) => character.to_string(),
+		Backspace => "backspace".to_string(),
+		Enter => "enter".to_string(),
+		Up => "up".to_string(),
+		Down => "down".to_string(),
+		Left => "left".to_string(),
+		Right => "right".to_string(),
+		Home => "home".to_string(),
+		End => "end".to_string(),
+		PageUp => "pageup".to_string(),
+		PageDown => "pagedown".to_string(),
+		Tab => "tab".to_string(),
+		Delete => "delete".to_string(),
+		Insert => "insert".to_string(),
+		Esc => "escape".to_string(),
 		_ => todo!()
 	}
 }
@@ -207,26 +221,49 @@ impl TryFrom<&str> for Keypress {
 	type Error = String;
 	
 	fn try_from(string: &str) -> Result<Self, Self::Error> {
-		match string.chars().count() {
-			3 => {
-				Ok(Self {
-					code: KeyCode::Char(
-						string.chars().nth(2).unwrap()
-					),
-					modifiers: modifier_from_character(
-						string.chars().nth(0).unwrap()
-					).ok_or_else(|| format!("unknown modifier: {}", string.chars().nth(0).unwrap()))?,
-				})
-			}
-			1 => {
-				Ok(
-					KeyCode::Char(
-						string.chars().nth(0).unwrap()
-					).into()
-				)
-			}
-			_ => Err(format!("invalid keypress: {string}. only one modifier is allowed"))
+		if string.is_empty() {
+			return Err("keypress must not be empty".to_string());
 		}
+		
+		let mut chunks = string.split('-');
+		
+		Ok(Self {
+			code: try_key_code_from(chunks.next_back().unwrap())?,
+			modifiers: chunks
+				.map(|raw_modifier| {
+					if raw_modifier.len() == 1 {
+						modifier_from_character(
+							raw_modifier.chars().next().unwrap()
+						)
+					} else {
+						Err(format!("invalid modifier: {raw_modifier}"))
+					}
+				})
+				.try_fold(KeyModifiers::NONE, |partial_result, modifier| {
+					Ok::<KeyModifiers, String>(partial_result.union(modifier?))
+				})?
+		})
+	}
+}
+
+fn try_key_code_from(string: &str) -> Result<KeyCode, String> {
+	match string {
+		"backspace" => Ok(KeyCode::Backspace),
+		"enter" => Ok(KeyCode::Enter),
+		"up" => Ok(KeyCode::Up),
+		"down" => Ok(KeyCode::Down),
+		"left" => Ok(KeyCode::Left),
+		"right" => Ok(KeyCode::Right),
+		"home" => Ok(KeyCode::Home),
+		"end" => Ok(KeyCode::End),
+		"pageup" => Ok(KeyCode::PageUp),
+		"pagedown" => Ok(KeyCode::PageDown),
+		"tab" => Ok(KeyCode::Tab),
+		"delete" => Ok(KeyCode::Delete),
+		"insert" => Ok(KeyCode::Insert),
+		"escape" => Ok(KeyCode::Esc),
+		character if character.len() == 1 => Ok(KeyCode::Char(character.chars().next().unwrap())),
+		_ => Err(format!("invalid key code: '{string}'")),
 	}
 }
 
@@ -281,6 +318,11 @@ impl Default for Config {
 					("k".try_into().unwrap(), MoveByteDown.into()),
 					("j".try_into().unwrap(), MoveByteLeft.into()),
 					("l".try_into().unwrap(), MoveByteRight.into()),
+					
+					("up".try_into().unwrap(), MoveByteUp.into()),
+					("down".try_into().unwrap(), MoveByteDown.into()),
+					("left".try_into().unwrap(), MoveByteLeft.into()),
+					("right".try_into().unwrap(), MoveByteRight.into()),
 					
 					("G".try_into().unwrap(), GotoFileEnd.into()),
 					
@@ -359,6 +401,11 @@ impl Default for Config {
 					("j".try_into().unwrap(), MoveByteLeft.into()),
 					("l".try_into().unwrap(), MoveByteRight.into()),
 					
+					("up".try_into().unwrap(), MoveByteUp.into()),
+					("down".try_into().unwrap(), MoveByteDown.into()),
+					("left".try_into().unwrap(), MoveByteLeft.into()),
+					("right".try_into().unwrap(), MoveByteRight.into()),
+					
 					("C-e".try_into().unwrap(), ScrollDown.into()),
 					("C-y".try_into().unwrap(), ScrollUp.into()),
 					
@@ -403,6 +450,11 @@ impl Default for Config {
 					("k".try_into().unwrap(), ExtendByteDown.into()),
 					("j".try_into().unwrap(), ExtendByteLeft.into()),
 					("l".try_into().unwrap(), ExtendByteRight.into()),
+					
+					("up".try_into().unwrap(), ExtendByteUp.into()),
+					("down".try_into().unwrap(), ExtendByteDown.into()),
+					("left".try_into().unwrap(), ExtendByteLeft.into()),
+					("right".try_into().unwrap(), ExtendByteRight.into()),
 					
 					("C-e".try_into().unwrap(), ScrollDown.into()),
 					("C-y".try_into().unwrap(), ScrollUp.into()),
@@ -469,6 +521,11 @@ impl Default for Config {
 					("k".try_into().unwrap(), ExtendByteDown.into()),
 					("j".try_into().unwrap(), ExtendByteLeft.into()),
 					("l".try_into().unwrap(), ExtendByteRight.into()),
+					
+					("up".try_into().unwrap(), ExtendByteUp.into()),
+					("down".try_into().unwrap(), ExtendByteDown.into()),
+					("left".try_into().unwrap(), ExtendByteLeft.into()),
+					("right".try_into().unwrap(), ExtendByteRight.into()),
 					
 					("C-e".try_into().unwrap(), ScrollDown.into()),
 					("C-y".try_into().unwrap(), ScrollUp.into()),
