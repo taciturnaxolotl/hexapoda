@@ -1,7 +1,7 @@
 use core::slice::GetDisjointMutIndex;
 use std::{collections::HashSet, fs::File, io::Read, path::PathBuf};
 use crossterm::event::KeyEvent;
-use ratatui::{layout::{Constraint, Rect}, style::{Color, Stylize}, text::Span, widgets::{Block, Clear, Widget}};
+use ratatui::{layout::{Constraint, Rect}, style::{Color, Style, Stylize}, text::Span, widgets::{Block, Borders, Clear, Widget}};
 use serde::{Deserialize, Serialize};
 use crate::{BYTES_PER_LINE, action::{Action, AppAction, bytes_to_nat}, app::WindowSize, config::Config, cursor::Cursor, edit_action::EditAction};
 
@@ -55,6 +55,7 @@ pub enum PartialAction {
 pub struct Popup {
 	at: usize,
 	width: u16,
+	primary: bool,
 	lines: Vec<Span<'static>>
 }
 
@@ -118,6 +119,7 @@ impl Popup {
 				.map(|line| line.width() as u16)
 				.max()
 				.unwrap_or(0),
+			primary: false,
 			lines
 		}
 	}
@@ -130,17 +132,31 @@ impl Popup {
 			height: self.lines.len() as u16
 		}
 	}
+	
+	#[allow(clippy::wrong_self_convention)]
+	const fn as_primary(mut self) -> Self {
+		self.primary = true;
+		self
+	}
 }
 
 impl Widget for Popup {
 	fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
+		Clear.render(area, buf);
+		
+		let border_color = if self.primary {
+			Style::new().white()
+		} else {
+			Style::new().gray()
+		};
+		
+		Block::new()
+			.on_dark_gray()
+			.borders(Borders::LEFT | Borders::RIGHT)
+			.border_style(border_color)
+			.render(area, buf);
+		
 		for (line, area) in self.lines.iter().zip(area.rows()) {
-			Clear.render(area, buf);
-			
-			Block::new()
-				.on_dark_gray()
-				.render(area, buf);
-			
 			line.render(
 				area.centered_horizontally(Constraint::Length(line.width() as u16)),
 				buf

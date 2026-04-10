@@ -43,6 +43,9 @@ impl Widget for &Buffer {
 			.right_aligned()
 			.render(status_line_area, buf);
 		
+		let mut primary_popup = None;
+		let mut primary_popup_area = None;
+		
 		for popup in &self.popups {
 			if self.scroll_position <= popup.at &&
 			   popup.at < self.scroll_position + (hex_area.height.saturating_sub(1) as usize * BYTES_PER_LINE)
@@ -57,8 +60,19 @@ impl Widget for &Buffer {
 					)
 					.clamp(hex_area);
 				
+				if popup.at == self.primary_cursor.lower_bound() {
+					primary_popup = Some(popup);
+					primary_popup_area = Some(popup_area);
+				}
+				
 				popup.clone().render(popup_area, buf);
 			}
+		}
+		
+		if let Some(primary_popup) = primary_popup &&
+		   let Some(primary_popup_area) = primary_popup_area
+		{
+			primary_popup.clone().as_primary().render(primary_popup_area, buf);
 		}
 		
 		// if self.partial_action == Some(PartialAction::Space) {
