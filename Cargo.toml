@@ -1,6 +1,11 @@
 [package]
 name = "hexapoda"
 version = "0.1.0"
+description = "a colorful modal hex editor"
+repository = "https://github.com/simonomi/hexapoda"
+keywords = ["cli", "tui", "hex", "tool", "editor"]
+categories = ["command-line-utilities"]
+license = "GPL-3.0-only"
 edition = "2024"
 
 [dependencies]

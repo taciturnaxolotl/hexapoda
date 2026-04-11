@@ -28,6 +28,13 @@ const LINES_OF_PADDING: usize = 5;
 const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 
 // TODO:
+// - help (use clap?)
+// - clean up files
+// - update showcase
+// - write docs
+//   - simonomi.dev/hexapoda?
+//   - config
+//   - uhhhhh?
 // - inspector translations for varint
 // - search
 //   - ascii and bytes (`/` and `A-/`?)
