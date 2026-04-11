@@ -1,5 +1,5 @@
 use core::slice::GetDisjointMutIndex;
-use std::{collections::HashSet, fs::File, io::Read, path::PathBuf};
+use std::{collections::HashSet, fs::File, io::{self, Read}, path::PathBuf};
 use crossterm::event::KeyEvent;
 use ratatui::{layout::{Constraint, Rect}, style::{Color, Style, Stylize}, text::Span, widgets::{Block, Borders, Clear, Widget}};
 use serde::{Deserialize, Serialize};
@@ -171,11 +171,15 @@ impl Widget for Popup {
 }
 
 impl Buffer {
-	pub fn new(file_path: PathBuf) -> Self {
-		let file = File::open(&file_path);
+	pub fn from_file_at(file_path: PathBuf) -> io::Result<Self> {
+		let mut file = File::open(&file_path)?;
 		let mut contents = Vec::new();
-		file.unwrap().read_to_end(&mut contents).unwrap();
+		file.read_to_end(&mut contents)?;
 		
+		Ok(Self::new(file_path, contents))
+	}
+	
+	pub fn new(file_path: PathBuf, contents: Vec<u8>) -> Self {
 		Self {
 			file_name: file_path.file_name().unwrap().to_str().unwrap().to_owned(),
 			file_path,
