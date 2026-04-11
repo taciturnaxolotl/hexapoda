@@ -1,7 +1,7 @@
 use std::{cmp::min, collections::hash_set::Entry, convert::identity, fs::File, io::Write, iter, mem::{replace, swap}};
 use ratatui::{style::{Color, Stylize}, text::Span};
 use serde::{Deserialize, Serialize};
-use crate::{BYTES_OF_PADDING, BYTES_PER_LINE, LINES_OF_PADDING, app::WindowSize, buffer::{Buffer, Mode, PartialAction, Popup}, cursor::Cursor, edit_action::EditAction};
+use crate::{BYTES_OF_PADDING, BYTES_PER_LINE, LINES_OF_PADDING, app::WindowSize, buffer::{Buffer, InspectionStatus, Mode, PartialAction, Popup}, cursor::Cursor, edit_action::EditAction};
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
 #[derive(Debug)]
@@ -22,6 +22,13 @@ impl Action {
 			Buffer(buffer_action) => buffer_action.clears_popups(),
 			Cursor(cursor_action) => cursor_action.clears_popups(),
 		}
+	}
+	
+	pub const fn is_inspection(self) -> bool {
+		use Action::*;
+		use BufferAction::*;
+		
+		matches!(self, Buffer(InspectSelection | InspectSelectionColor))
 	}
 }
 
@@ -1179,9 +1186,12 @@ impl Buffer {
 	
 	#[allow(clippy::too_many_lines)]
 	fn inspect_selection(&mut self) {
-		if self.inspecting_selection { return; }
+		if self.inspection_status == Some(InspectionStatus::Normal) {
+			self.inspection_status = None;
+			return;
+		}
 		
-		self.inspecting_selection = true;
+		self.inspection_status = Some(InspectionStatus::Normal);
 		
 		self.popups.extend(
 			iter::once(&self.primary_cursor)
@@ -1200,14 +1210,17 @@ impl Buffer {
 		);
 		
 		if self.popups.is_empty() {
-			self.inspecting_selection = false;
+			self.inspection_status = None;
 		}
 	}
 	
 	fn inspect_selection_color(&mut self) {
-		if self.inspecting_selection { return; }
+		if self.inspection_status == Some(InspectionStatus::ColorsOnly) {
+			self.inspection_status = None;
+			return;
+		}
 		
-		self.inspecting_selection = true;
+		self.inspection_status = Some(InspectionStatus::ColorsOnly);
 		
 		self.popups.extend(
 			iter::once(&self.primary_cursor)
@@ -1226,7 +1239,7 @@ impl Buffer {
 		);
 		
 		if self.popups.is_empty() {
-			self.inspecting_selection = false;
+			self.inspection_status = None;
 		}
 	}
 }

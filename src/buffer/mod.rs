@@ -26,7 +26,7 @@ pub struct Buffer {
 	pub alert_message: Span<'static>,
 	pub popups: Vec<Popup>,
 	
-	pub inspecting_selection: bool,
+	pub inspection_status: Option<InspectionStatus>,
 	
 	pub edit_history: Vec<EditAction>,
 	// the index *after* the latest edit action
@@ -57,6 +57,11 @@ pub struct Popup {
 	width: u16,
 	primary: bool,
 	lines: Vec<Span<'static>>
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum InspectionStatus {
+	Normal, ColorsOnly
 }
 
 impl Mode {
@@ -190,7 +195,7 @@ impl Buffer {
 			alert_message: "".into(),
 			popups: Vec::new(),
 			
-			inspecting_selection: false,
+			inspection_status: None,
 			
 			edit_history: Vec::new(),
 			time_traveling: None,
@@ -273,6 +278,8 @@ impl Buffer {
 		config: &Config,
 		window_size: WindowSize
 	) -> Option<AppAction> {
+		use Action::*;
+		
 		let mut result = None;
 		
 		let should_reset_partial = self.partial_action.is_some();
@@ -285,12 +292,10 @@ impl Buffer {
 				self.popups.clear();
 			}
 			
-			let was_inspecting_selection = self.inspecting_selection;
-			
 			match action {
-				Action::App(app_action) => result = Some(*app_action),
-				Action::Buffer(buffer_action) => self.execute(*buffer_action, window_size),
-				Action::Cursor(cursor_action) => {
+				App(app_action) => result = Some(*app_action),
+				Buffer(buffer_action) => self.execute(*buffer_action, window_size),
+				Cursor(cursor_action) => {
 					let max_contents_index = self.max_contents_index();
 					
 					self.primary_cursor.execute(*cursor_action, max_contents_index);
@@ -305,8 +310,8 @@ impl Buffer {
 				},
 			}
 			
-			if was_inspecting_selection {
-				self.inspecting_selection = false;
+			if !action.is_inspection() {
+				self.inspection_status = None;
 			}
 		}
 		
