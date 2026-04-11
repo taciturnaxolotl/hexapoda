@@ -29,7 +29,7 @@ impl App {
 
 fn tab_for(buffer: &Buffer, is_active: bool) -> Span<'static> {
 	let background = if is_active {
-		Color::select_grey()
+		Color::selection_tail_grey()
 	} else {
 		Color::ui_grey()
 	};

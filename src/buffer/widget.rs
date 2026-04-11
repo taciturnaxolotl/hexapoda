@@ -260,15 +260,15 @@ use ratatui::{style::{Color, Style, Stylize}, text::Span};
 				
 				match place_in_cursor {
 					InCursor::Head => span.bg(head_color),
-					InCursor::Rest => span.bg(Color::select_grey()),
+					InCursor::Rest => span.bg(Color::selection_tail_grey()),
 				}
 			} else {
 				match self.cursors
 					.iter()
 					.find_map(|cursor| cursor.contains(address))
 				{
-					Some(InCursor::Head) => span.on_gray(),
-					Some(InCursor::Rest) => span.bg(Color::select_grey()),
+					Some(InCursor::Head) => span.bg(Color::secondary_selection_head_grey()),
+					Some(InCursor::Rest) => span.bg(Color::selection_tail_grey()),
 					None => span,
 				}
 			}
@@ -286,7 +286,7 @@ use ratatui::{style::{Color, Style, Stylize}, text::Span};
 					.chain(&self.cursors)
 					.any(|cursor| cursor.contains_space_before(address))
 			{
-				span.bg(Color::select_grey())
+				span.bg(Color::selection_tail_grey())
 			} else {
 				span
 			}
@@ -303,7 +303,7 @@ use ratatui::{style::{Color, Style, Stylize}, text::Span};
 				.chain(&self.cursors)
 				.any(|cursor| cursor.contains_space_before(address))
 			{
-				span.bg(Color::select_grey())
+				span.bg(Color::selection_tail_grey())
 			} else {
 				span
 			}
@@ -392,7 +392,7 @@ mod character_panel {
 				.chain(&self.cursors)
 				.find_map(|cursor| cursor.contains(address))
 			{
-				Some(InCursor::Head) => span.bg(Color::select_grey()),
+				Some(InCursor::Head) => span.bg(Color::selection_tail_grey()),
 				Some(InCursor::Rest) => span.on_dark_gray(),
 				None => span,
 			}
