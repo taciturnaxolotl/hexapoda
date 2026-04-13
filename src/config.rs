@@ -34,7 +34,7 @@ pub struct Keypress {
 
 impl Config {
 	#[cfg(unix)]
-	fn path() -> Option<PathBuf> {
+	fn default_path() -> Option<PathBuf> {
 		env::var_os("XDG_CONFIG_HOME")
 			.map(PathBuf::from)
 			.take_if(|xdg_config_home| xdg_config_home.is_absolute())
@@ -43,14 +43,17 @@ impl Config {
 	}
 	
 	#[cfg(windows)]
-	fn path() -> Option<PathBuf> {
+	fn default_path() -> Option<PathBuf> {
 		// this isn't technically the right way but it should be good enough
 		home_dir().map(|home| home.join("AppData").join("Roaming"))
 	}
 	
+	pub fn path(override_path: Option<PathBuf>) -> Option<PathBuf> {
+		override_path.or_else(Self::default_path)
+	}
+	
 	pub fn init(override_path: Option<PathBuf>) -> Result<Self, ConfigInitError> {
-		let path = override_path
-			.or_else(Self::path)
+		let path = Self::path(override_path)
 			.ok_or(ConfigInitError::NoConfigPath)?;
 		
 		let raw_config = read_to_string(path)?;

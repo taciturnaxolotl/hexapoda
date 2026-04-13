@@ -11,4 +11,8 @@ pub struct Arguments {
 	/// the input files to edit
 	#[arg(value_name = "files")]
 	pub files: Vec<PathBuf>,
+	
+	/// print the path to the config file
+	#[arg(short, long)]
+	pub show_config_path: bool,
 }

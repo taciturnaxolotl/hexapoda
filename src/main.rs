@@ -11,6 +11,8 @@ use clap::Parser;
 use app::App;
 use crossterm::{QueueableCommand, event::{DisableMouseCapture, EnableMouseCapture}};
 
+use crate::config::Config;
+
 mod app;
 mod buffer;
 mod popup;
@@ -33,12 +35,12 @@ const LINES_OF_PADDING: usize = 5;
 const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 
 // TODO:
-// - update showcase
 // - write docs
 //   - simonomi.dev/hexapoda?
 //   - config
 //     - schema!!
 //   - uhhhhh?
+// - update showcase
 // - fix scroll clamping
 // - inspector translations for varint
 // - search
@@ -70,6 +72,20 @@ const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 
 fn main() {
 	let arguments = Arguments::parse();
+	
+	if arguments.show_config_path {
+		if let Some(path) = Config::path(arguments.config) {
+			println!("{}", path.display());
+		} else {
+			#[cfg(unix)] {
+				println!("currently, no config file will be used. define the environment variable XDG_CONFIG_HOME or use the -c/--config option to provide one");
+			}
+			#[cfg(windows)] {
+				println!("currently, no config file will be used. use the -c/--config option to provide one");
+			}
+		}
+		return;
+	}
 	
 	let mut app = App::new(
 		arguments.config,
