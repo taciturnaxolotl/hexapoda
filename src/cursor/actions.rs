@@ -1,3 +1,6 @@
+use std::{cmp::min, mem::swap};
+use crate::{BYTES_PER_LINE, action::CursorAction, cursor::Cursor};
+
 impl Cursor {
 	pub fn execute(
 		&mut self,
@@ -180,7 +183,7 @@ impl Cursor {
 		}
 		
 		if self.tail.is_multiple_of(BYTES_PER_LINE) &&
-           self.head % BYTES_PER_LINE == BYTES_PER_LINE - 1
+		   self.head % BYTES_PER_LINE == BYTES_PER_LINE - 1
 		{
 			self.head = min(self.head + BYTES_PER_LINE, max);
 		} else {

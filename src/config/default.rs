@@ -1,4 +1,8 @@
-use crate::{action::{AppAction, BufferAction, CursorAction}, buffer::{Mode, PartialAction}, config::Config};
+use crate::{action::{AppAction, BufferAction, CursorAction}, buffer::{Mode, PartialAction}, config::{Config, Keypress}};
+
+fn keypress(string: &str) -> Keypress {
+	string.try_into().unwrap()
+}
 
 impl Default for Config {
 	#[allow(clippy::too_many_lines)]
@@ -10,255 +14,255 @@ impl Default for Config {
 		[
 			(Mode::Normal, [
 				(None, [
-					("q".try_into().unwrap(), QuitIfSaved.into()),
-					("Q".try_into().unwrap(), Quit.into()),
+					(keypress("q"), QuitIfSaved.into()),
+					(keypress("Q"), Quit.into()),
 					
-					("v".try_into().unwrap(), SelectMode.into()),
+					(keypress("v"), SelectMode.into()),
 					
-					("g".try_into().unwrap(), Goto.into()),
-					("z".try_into().unwrap(), View.into()),
-					("r".try_into().unwrap(), Replace.into()),
-					(" ".try_into().unwrap(), Space.into()),
-					("*".try_into().unwrap(), Repeat.into()),
-					("t".try_into().unwrap(), To.into()),
+					(keypress("g"), Goto.into()),
+					(keypress("z"), View.into()),
+					(keypress("r"), Replace.into()),
+					(keypress(" "), Space.into()),
+					(keypress("*"), Repeat.into()),
+					(keypress("t"), To.into()),
 					
-					("i".try_into().unwrap(), MoveByteUp.into()),
-					("k".try_into().unwrap(), MoveByteDown.into()),
-					("j".try_into().unwrap(), MoveByteLeft.into()),
-					("l".try_into().unwrap(), MoveByteRight.into()),
+					(keypress("i"), MoveByteUp.into()),
+					(keypress("k"), MoveByteDown.into()),
+					(keypress("j"), MoveByteLeft.into()),
+					(keypress("l"), MoveByteRight.into()),
 					
-					("up".try_into().unwrap(), MoveByteUp.into()),
-					("down".try_into().unwrap(), MoveByteDown.into()),
-					("left".try_into().unwrap(), MoveByteLeft.into()),
-					("right".try_into().unwrap(), MoveByteRight.into()),
+					(keypress("up"), MoveByteUp.into()),
+					(keypress("down"), MoveByteDown.into()),
+					(keypress("left"), MoveByteLeft.into()),
+					(keypress("right"), MoveByteRight.into()),
 					
-					("G".try_into().unwrap(), GotoFileEnd.into()),
+					(keypress("G"), GotoFileEnd.into()),
 					
-					("C-e".try_into().unwrap(), ScrollDown.into()),
-					("C-y".try_into().unwrap(), ScrollUp.into()),
+					(keypress("C-e"), ScrollDown.into()),
+					(keypress("C-y"), ScrollUp.into()),
 					
-					("C-d".try_into().unwrap(), PageCursorHalfDown.into()),
-					("C-u".try_into().unwrap(), PageCursorHalfUp.into()),
+					(keypress("C-d"), PageCursorHalfDown.into()),
+					(keypress("C-u"), PageCursorHalfUp.into()),
 					
-					("C-f".try_into().unwrap(), PageDown.into()),
-					("C-b".try_into().unwrap(), PageUp.into()),
+					(keypress("C-f"), PageDown.into()),
+					(keypress("C-b"), PageUp.into()),
 					
-					("w".try_into().unwrap(), MoveNextWordStart.into()),
-					("e".try_into().unwrap(), MoveNextWordEnd.into()),
-					("b".try_into().unwrap(), MovePreviousWordStart.into()),
+					(keypress("w"), MoveNextWordStart.into()),
+					(keypress("e"), MoveNextWordEnd.into()),
+					(keypress("b"), MovePreviousWordStart.into()),
 					
-					(";".try_into().unwrap(), CollapseSelection.into()),
-					("A-;".try_into().unwrap(), FlipSelections.into()),
+					(keypress(";"), CollapseSelection.into()),
+					(keypress("A-;"), FlipSelections.into()),
 					
-					("x".try_into().unwrap(), ExtendLineBelow.into()),
-					("X".try_into().unwrap(), ExtendLineAbove.into()),
+					(keypress("x"), ExtendLineBelow.into()),
+					(keypress("X"), ExtendLineAbove.into()),
 					
-					("d".try_into().unwrap(), Delete.into()),
+					(keypress("d"), Delete.into()),
 					
-					("u".try_into().unwrap(), Undo.into()),
-					("U".try_into().unwrap(), Redo.into()),
+					(keypress("u"), Undo.into()),
+					(keypress("U"), Redo.into()),
 					
-					("C-j".try_into().unwrap(), PreviousBuffer.into()),
-					("C-l".try_into().unwrap(), NextBuffer.into()),
+					(keypress("C-j"), PreviousBuffer.into()),
+					(keypress("C-l"), NextBuffer.into()),
 					
-					("C".try_into().unwrap(), CopySelectionOnNextLine.into()),
+					(keypress("C"), CopySelectionOnNextLine.into()),
 					
-					("(".try_into().unwrap(), RotateSelectionsBackward.into()),
-					(")".try_into().unwrap(), RotateSelectionsForward.into()),
+					(keypress("("), RotateSelectionsBackward.into()),
+					(keypress(")"), RotateSelectionsForward.into()),
 					
-					(",".try_into().unwrap(), KeepPrimarySelection.into()),
-					("A-,".try_into().unwrap(), RemovePrimarySelection.into()),
+					(keypress(","), KeepPrimarySelection.into()),
+					(keypress("A-,"), RemovePrimarySelection.into()),
 					
-					("1".try_into().unwrap(), SplitSelectionsInto1s.into()),
-					("2".try_into().unwrap(), SplitSelectionsInto2s.into()),
-					("3".try_into().unwrap(), SplitSelectionsInto3s.into()),
-					("4".try_into().unwrap(), SplitSelectionsInto4s.into()),
-					("5".try_into().unwrap(), SplitSelectionsInto5s.into()),
-					("6".try_into().unwrap(), SplitSelectionsInto6s.into()),
-					("7".try_into().unwrap(), SplitSelectionsInto7s.into()),
-					("8".try_into().unwrap(), SplitSelectionsInto8s.into()),
-					("9".try_into().unwrap(), SplitSelectionsInto9s.into()),
+					(keypress("1"), SplitSelectionsInto1s.into()),
+					(keypress("2"), SplitSelectionsInto2s.into()),
+					(keypress("3"), SplitSelectionsInto3s.into()),
+					(keypress("4"), SplitSelectionsInto4s.into()),
+					(keypress("5"), SplitSelectionsInto5s.into()),
+					(keypress("6"), SplitSelectionsInto6s.into()),
+					(keypress("7"), SplitSelectionsInto7s.into()),
+					(keypress("8"), SplitSelectionsInto8s.into()),
+					(keypress("9"), SplitSelectionsInto9s.into()),
 					
-					("J".try_into().unwrap(), JumpToSelectedOffsetRelativeToMark.into()),
-					("A-J".try_into().unwrap(), JumpToSelectedOffset.into()),
+					(keypress("J"), JumpToSelectedOffsetRelativeToMark.into()),
+					(keypress("A-J"), JumpToSelectedOffset.into()),
 					
-					("m".try_into().unwrap(), ToggleMark.into()),
+					(keypress("m"), ToggleMark.into()),
 					
-					("y".try_into().unwrap(), Yank.into()),
+					(keypress("y"), Yank.into()),
 					
-					("C- ".try_into().unwrap(), InspectSelection.into()),
-					("A- ".try_into().unwrap(), InspectSelectionColor.into()),
+					(keypress("C- "), InspectSelection.into()),
+					(keypress("A- "), InspectSelectionColor.into()),
 				].into()),
 				(Some(PartialAction::Goto), [
-					("j".try_into().unwrap(), GotoLineStart.into()),
-					("l".try_into().unwrap(), GotoLineEnd.into()),
+					(keypress("j"), GotoLineStart.into()),
+					(keypress("l"), GotoLineEnd.into()),
 					
-					("g".try_into().unwrap(), GotoFileStart.into()),
+					(keypress("g"), GotoFileStart.into()),
 				].into()),
 				(Some(PartialAction::View), [
-					("z".try_into().unwrap(), AlignViewCenter.into()),
-					("b".try_into().unwrap(), AlignViewBottom.into()),
-					("t".try_into().unwrap(), AlignViewTop.into()),
+					(keypress("z"), AlignViewCenter.into()),
+					(keypress("b"), AlignViewBottom.into()),
+					(keypress("t"), AlignViewTop.into()),
 				].into()),
 				(Some(PartialAction::Space), [
-					("w".try_into().unwrap(), Save.into()),
+					(keypress("w"), Save.into()),
 				].into()),
 				(Some(PartialAction::Repeat), [
-					("i".try_into().unwrap(), MoveByteUp.into()),
-					("k".try_into().unwrap(), MoveByteDown.into()),
-					("j".try_into().unwrap(), MoveByteLeft.into()),
-					("l".try_into().unwrap(), MoveByteRight.into()),
+					(keypress("i"), MoveByteUp.into()),
+					(keypress("k"), MoveByteDown.into()),
+					(keypress("j"), MoveByteLeft.into()),
+					(keypress("l"), MoveByteRight.into()),
 					
-					("up".try_into().unwrap(), MoveByteUp.into()),
-					("down".try_into().unwrap(), MoveByteDown.into()),
-					("left".try_into().unwrap(), MoveByteLeft.into()),
-					("right".try_into().unwrap(), MoveByteRight.into()),
+					(keypress("up"), MoveByteUp.into()),
+					(keypress("down"), MoveByteDown.into()),
+					(keypress("left"), MoveByteLeft.into()),
+					(keypress("right"), MoveByteRight.into()),
 					
-					("C-e".try_into().unwrap(), ScrollDown.into()),
-					("C-y".try_into().unwrap(), ScrollUp.into()),
+					(keypress("C-e"), ScrollDown.into()),
+					(keypress("C-y"), ScrollUp.into()),
 					
-					("C-d".try_into().unwrap(), PageCursorHalfDown.into()),
-					("C-u".try_into().unwrap(), PageCursorHalfUp.into()),
+					(keypress("C-d"), PageCursorHalfDown.into()),
+					(keypress("C-u"), PageCursorHalfUp.into()),
 					
-					("C-f".try_into().unwrap(), PageDown.into()),
-					("C-b".try_into().unwrap(), PageUp.into()),
+					(keypress("C-f"), PageDown.into()),
+					(keypress("C-b"), PageUp.into()),
 					
-					("w".try_into().unwrap(), MoveNextWordStart.into()),
-					("e".try_into().unwrap(), MoveNextWordEnd.into()),
-					("b".try_into().unwrap(), MovePreviousWordStart.into()),
+					(keypress("w"), MoveNextWordStart.into()),
+					(keypress("e"), MoveNextWordEnd.into()),
+					(keypress("b"), MovePreviousWordStart.into()),
 					
-					("x".try_into().unwrap(), ExtendLineBelow.into()),
-					("X".try_into().unwrap(), ExtendLineAbove.into()),
+					(keypress("x"), ExtendLineBelow.into()),
+					(keypress("X"), ExtendLineAbove.into()),
 					
-					("d".try_into().unwrap(), Delete.into()),
+					(keypress("d"), Delete.into()),
 					
-					("C".try_into().unwrap(), CopySelectionOnNextLine.into()),
+					(keypress("C"), CopySelectionOnNextLine.into()),
 				].into()),
 				(Some(PartialAction::To), [
-					("m".try_into().unwrap(), ExtendToMark.into()),
-					("0".try_into().unwrap(), ExtendToNull.into()),
-					("f".try_into().unwrap(), ExtendToFF.into()),
+					(keypress("m"), ExtendToMark.into()),
+					(keypress("0"), ExtendToNull.into()),
+					(keypress("f"), ExtendToFF.into()),
 				].into()),
 			].into()),
 			(Mode::Select, [
 				(None, [
-					("q".try_into().unwrap(), QuitIfSaved.into()),
-					("Q".try_into().unwrap(), Quit.into()),
+					(keypress("q"), QuitIfSaved.into()),
+					(keypress("Q"), Quit.into()),
 					
-					("v".try_into().unwrap(), NormalMode.into()),
+					(keypress("v"), NormalMode.into()),
 					
-					("g".try_into().unwrap(), Goto.into()),
-					("z".try_into().unwrap(), View.into()),
-					("r".try_into().unwrap(), Replace.into()),
-					(" ".try_into().unwrap(), Space.into()),
-					("*".try_into().unwrap(), Repeat.into()),
-					("t".try_into().unwrap(), To.into()),
+					(keypress("g"), Goto.into()),
+					(keypress("z"), View.into()),
+					(keypress("r"), Replace.into()),
+					(keypress(" "), Space.into()),
+					(keypress("*"), Repeat.into()),
+					(keypress("t"), To.into()),
 					
-					("i".try_into().unwrap(), ExtendByteUp.into()),
-					("k".try_into().unwrap(), ExtendByteDown.into()),
-					("j".try_into().unwrap(), ExtendByteLeft.into()),
-					("l".try_into().unwrap(), ExtendByteRight.into()),
+					(keypress("i"), ExtendByteUp.into()),
+					(keypress("k"), ExtendByteDown.into()),
+					(keypress("j"), ExtendByteLeft.into()),
+					(keypress("l"), ExtendByteRight.into()),
 					
-					("up".try_into().unwrap(), ExtendByteUp.into()),
-					("down".try_into().unwrap(), ExtendByteDown.into()),
-					("left".try_into().unwrap(), ExtendByteLeft.into()),
-					("right".try_into().unwrap(), ExtendByteRight.into()),
+					(keypress("up"), ExtendByteUp.into()),
+					(keypress("down"), ExtendByteDown.into()),
+					(keypress("left"), ExtendByteLeft.into()),
+					(keypress("right"), ExtendByteRight.into()),
 					
-					("C-e".try_into().unwrap(), ScrollDown.into()),
-					("C-y".try_into().unwrap(), ScrollUp.into()),
+					(keypress("C-e"), ScrollDown.into()),
+					(keypress("C-y"), ScrollUp.into()),
 					
-					("C-d".try_into().unwrap(), PageCursorHalfDown.into()),
-					("C-u".try_into().unwrap(), PageCursorHalfUp.into()),
+					(keypress("C-d"), PageCursorHalfDown.into()),
+					(keypress("C-u"), PageCursorHalfUp.into()),
 					
-					("C-f".try_into().unwrap(), PageDown.into()),
-					("C-b".try_into().unwrap(), PageUp.into()),
+					(keypress("C-f"), PageDown.into()),
+					(keypress("C-b"), PageUp.into()),
 					
-					("w".try_into().unwrap(), ExtendNextWordStart.into()),
-					("e".try_into().unwrap(), ExtendNextWordEnd.into()),
-					("b".try_into().unwrap(), ExtendPreviousWordStart.into()),
+					(keypress("w"), ExtendNextWordStart.into()),
+					(keypress("e"), ExtendNextWordEnd.into()),
+					(keypress("b"), ExtendPreviousWordStart.into()),
 					
-					(";".try_into().unwrap(), CollapseSelection.into()),
-					("A-;".try_into().unwrap(), FlipSelections.into()),
+					(keypress(";"), CollapseSelection.into()),
+					(keypress("A-;"), FlipSelections.into()),
 					
-					("x".try_into().unwrap(), ExtendLineBelow.into()),
-					("X".try_into().unwrap(), ExtendLineAbove.into()),
+					(keypress("x"), ExtendLineBelow.into()),
+					(keypress("X"), ExtendLineAbove.into()),
 					
-					("d".try_into().unwrap(), Delete.into()),
+					(keypress("d"), Delete.into()),
 					
-					("u".try_into().unwrap(), Undo.into()),
-					("U".try_into().unwrap(), Redo.into()),
+					(keypress("u"), Undo.into()),
+					(keypress("U"), Redo.into()),
 					
-					("C".try_into().unwrap(), CopySelectionOnNextLine.into()),
+					(keypress("C"), CopySelectionOnNextLine.into()),
 					
-					("(".try_into().unwrap(), RotateSelectionsBackward.into()),
-					(")".try_into().unwrap(), RotateSelectionsForward.into()),
+					(keypress("("), RotateSelectionsBackward.into()),
+					(keypress(")"), RotateSelectionsForward.into()),
 					
-					(",".try_into().unwrap(), KeepPrimarySelection.into()),
-					("A-,".try_into().unwrap(), RemovePrimarySelection.into()),
+					(keypress(","), KeepPrimarySelection.into()),
+					(keypress("A-,"), RemovePrimarySelection.into()),
 					
-					("1".try_into().unwrap(), SplitSelectionsInto1s.into()),
-					("2".try_into().unwrap(), SplitSelectionsInto2s.into()),
-					("3".try_into().unwrap(), SplitSelectionsInto3s.into()),
-					("4".try_into().unwrap(), SplitSelectionsInto4s.into()),
-					("5".try_into().unwrap(), SplitSelectionsInto5s.into()),
-					("6".try_into().unwrap(), SplitSelectionsInto6s.into()),
-					("7".try_into().unwrap(), SplitSelectionsInto7s.into()),
-					("8".try_into().unwrap(), SplitSelectionsInto8s.into()),
-					("9".try_into().unwrap(), SplitSelectionsInto9s.into()),
+					(keypress("1"), SplitSelectionsInto1s.into()),
+					(keypress("2"), SplitSelectionsInto2s.into()),
+					(keypress("3"), SplitSelectionsInto3s.into()),
+					(keypress("4"), SplitSelectionsInto4s.into()),
+					(keypress("5"), SplitSelectionsInto5s.into()),
+					(keypress("6"), SplitSelectionsInto6s.into()),
+					(keypress("7"), SplitSelectionsInto7s.into()),
+					(keypress("8"), SplitSelectionsInto8s.into()),
+					(keypress("9"), SplitSelectionsInto9s.into()),
 					
-					("J".try_into().unwrap(), JumpToSelectedOffsetRelativeToMark.into()),
-					("A-J".try_into().unwrap(), JumpToSelectedOffset.into()),
+					(keypress("J"), JumpToSelectedOffsetRelativeToMark.into()),
+					(keypress("A-J"), JumpToSelectedOffset.into()),
 					
-					("m".try_into().unwrap(), ToggleMark.into()),
+					(keypress("m"), ToggleMark.into()),
 					
-					("y".try_into().unwrap(), Yank.into()),
+					(keypress("y"), Yank.into()),
 					
-					("C- ".try_into().unwrap(), InspectSelection.into()),
-					("A- ".try_into().unwrap(), InspectSelectionColor.into()),
+					(keypress("C- "), InspectSelection.into()),
+					(keypress("A- "), InspectSelectionColor.into()),
 				].into()),
 				(Some(PartialAction::View), [
-					("z".try_into().unwrap(), AlignViewCenter.into()),
-					("b".try_into().unwrap(), AlignViewBottom.into()),
-					("t".try_into().unwrap(), AlignViewTop.into()),
+					(keypress("z"), AlignViewCenter.into()),
+					(keypress("b"), AlignViewBottom.into()),
+					(keypress("t"), AlignViewTop.into()),
 				].into()),
 				(Some(PartialAction::Space), [
-					("w".try_into().unwrap(), Save.into()),
+					(keypress("w"), Save.into()),
 				].into()),
 				(Some(PartialAction::Repeat), [
-					("i".try_into().unwrap(), ExtendByteUp.into()),
-					("k".try_into().unwrap(), ExtendByteDown.into()),
-					("j".try_into().unwrap(), ExtendByteLeft.into()),
-					("l".try_into().unwrap(), ExtendByteRight.into()),
+					(keypress("i"), ExtendByteUp.into()),
+					(keypress("k"), ExtendByteDown.into()),
+					(keypress("j"), ExtendByteLeft.into()),
+					(keypress("l"), ExtendByteRight.into()),
 					
-					("up".try_into().unwrap(), ExtendByteUp.into()),
-					("down".try_into().unwrap(), ExtendByteDown.into()),
-					("left".try_into().unwrap(), ExtendByteLeft.into()),
-					("right".try_into().unwrap(), ExtendByteRight.into()),
+					(keypress("up"), ExtendByteUp.into()),
+					(keypress("down"), ExtendByteDown.into()),
+					(keypress("left"), ExtendByteLeft.into()),
+					(keypress("right"), ExtendByteRight.into()),
 					
-					("C-e".try_into().unwrap(), ScrollDown.into()),
-					("C-y".try_into().unwrap(), ScrollUp.into()),
+					(keypress("C-e"), ScrollDown.into()),
+					(keypress("C-y"), ScrollUp.into()),
 					
-					("C-d".try_into().unwrap(), PageCursorHalfDown.into()),
-					("C-u".try_into().unwrap(), PageCursorHalfUp.into()),
+					(keypress("C-d"), PageCursorHalfDown.into()),
+					(keypress("C-u"), PageCursorHalfUp.into()),
 					
-					("C-f".try_into().unwrap(), PageDown.into()),
-					("C-b".try_into().unwrap(), PageUp.into()),
+					(keypress("C-f"), PageDown.into()),
+					(keypress("C-b"), PageUp.into()),
 					
-					("w".try_into().unwrap(), ExtendNextWordStart.into()),
-					("e".try_into().unwrap(), ExtendNextWordEnd.into()),
-					("b".try_into().unwrap(), ExtendPreviousWordStart.into()),
+					(keypress("w"), ExtendNextWordStart.into()),
+					(keypress("e"), ExtendNextWordEnd.into()),
+					(keypress("b"), ExtendPreviousWordStart.into()),
 					
-					("x".try_into().unwrap(), ExtendLineBelow.into()),
-					("X".try_into().unwrap(), ExtendLineAbove.into()),
+					(keypress("x"), ExtendLineBelow.into()),
+					(keypress("X"), ExtendLineAbove.into()),
 					
-					("d".try_into().unwrap(), Delete.into()),
+					(keypress("d"), Delete.into()),
 					
-					("C".try_into().unwrap(), CopySelectionOnNextLine.into()),
+					(keypress("C"), CopySelectionOnNextLine.into()),
 				].into()),
 				(Some(PartialAction::To), [
-					("m".try_into().unwrap(), ExtendToMark.into()),
-					("0".try_into().unwrap(), ExtendToNull.into()),
-					("f".try_into().unwrap(), ExtendToFF.into()),
+					(keypress("m"), ExtendToMark.into()),
+					(keypress("0"), ExtendToNull.into()),
+					(keypress("f"), ExtendToFF.into()),
 				].into()),
 			].into())
 		].into()

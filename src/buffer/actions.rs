@@ -121,11 +121,13 @@ impl Buffer {
 		} else {
 			self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
 		}
+		
 		self.combine_cursors_if_overlapping();
 	}
 	
 	pub fn scroll_up(&mut self, window_size: WindowSize) {
 		self.scroll_position = self.scroll_position.saturating_sub(BYTES_PER_LINE);
+		
 		if window_size.hex_rows() > LINES_OF_PADDING * 2 {
 			self.primary_cursor.clamp(
 				self.scroll_position + BYTES_OF_PADDING,
@@ -134,6 +136,7 @@ impl Buffer {
 		} else {
 			self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
 		}
+		
 		self.combine_cursors_if_overlapping();
 	}
 	
@@ -210,6 +213,7 @@ impl Buffer {
 		} else {
 			self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
 		}
+		
 		self.combine_cursors_if_overlapping();
 	}
 	
@@ -226,6 +230,7 @@ impl Buffer {
 		} else {
 			self.primary_cursor.clamp(self.scroll_position, window_size.visible_byte_count());
 		}
+		
 		self.combine_cursors_if_overlapping();
 	}
 	
@@ -340,7 +345,6 @@ impl Buffer {
 		self.cursors.sort_by_key(|cursor| cursor.head);
 		
 		self.combine_cursors_if_overlapping();
-		
 		self.rotate_selections_forward(window_size);
 	}
 	
@@ -576,6 +580,7 @@ impl Buffer {
 			cursor.head = mark_after_cursor - 1;
 		}
 		
+		self.combine_cursors_if_overlapping();
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
@@ -600,6 +605,7 @@ impl Buffer {
 			}
 		}
 		
+		self.combine_cursors_if_overlapping();
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
@@ -625,6 +631,7 @@ impl Buffer {
 			}
 		}
 		
+		self.combine_cursors_if_overlapping();
 		self.clamp_screen_to_primary_cursor(window_size);
 	}
 	
@@ -696,7 +703,7 @@ fn inspect(selection: &[u8]) -> Vec<Span<'static>> {
 	let int = nat.and_then(|nat| nat_to_int_if_different(nat, selection.len()));
 	
 	let utf8 = str::from_utf8(selection).ok()
-		.filter(|_| selection.len() == 1)
+		.filter(|_| selection.len() != 1)
 		.map(|utf8| utf8.trim_suffix('\0'))
 		.filter(|utf8| !utf8.contains(is_illegal_control_character))
 		.map(|utf8| Span::from(format!("\"{utf8}\"")).red());
