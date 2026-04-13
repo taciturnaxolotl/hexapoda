@@ -1,11 +1,12 @@
 use core::slice::GetDisjointMutIndex;
 use std::{collections::HashSet, fs::File, io::{self, Read}, path::PathBuf};
 use crossterm::event::KeyEvent;
-use ratatui::{layout::{Constraint, Rect}, style::{Color, Style, Stylize}, text::Span, widgets::{Block, Borders, Clear, Widget}};
+use ratatui::{style::Stylize, text::Span};
 use serde::{Deserialize, Serialize};
-use crate::{BYTES_PER_LINE, action::{Action, AppAction, bytes_to_nat}, app::WindowSize, config::Config, cursor::Cursor, edit_action::EditAction};
+use crate::{BYTES_PER_LINE, action::{Action, AppAction}, buffer::actions::bytes_to_nat, config::Config, cursor::Cursor, edit_action::EditAction, popup::Popup, window_size::WindowSize};
 
 mod widget;
+mod actions;
 
 pub struct Buffer {
 	pub file_name: String,
@@ -51,50 +52,9 @@ pub enum PartialAction {
 	Goto, View, Replace, Space, Repeat, To
 }
 
-#[derive(Clone)]
-pub struct Popup {
-	pub at: usize,
-	width: u16,
-	primary: bool,
-	lines: Vec<Span<'static>>
-}
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum InspectionStatus {
 	Normal, ColorsOnly
-}
-
-impl Mode {
-	pub const fn label(self) -> &'static str {
-		match self {
-			Self::Normal => " NORMAL ",
-			Self::Select => " SELECT ",
-			Self::Insert => " INSERT ",
-		}
-	}
-	
-	pub const fn color(self) -> Color {
-		match self {
-			Self::Normal => Color::Blue,
-			Self::Select => Color::Yellow,
-			Self::Insert => Color::Green,
-		}
-	}
-}
-
-impl PartialAction {
-	pub const fn label(self) -> &'static str {
-		use PartialAction::*;
-		
-		match self {
-			Goto => "g",
-			View => "z",
-			Replace => "r",
-			Space => "␠",
-			Repeat => "×",
-			To => "t",
-		}
-	}
 }
 
 impl TryFrom<&str> for PartialAction {
@@ -111,61 +71,6 @@ impl TryFrom<&str> for PartialAction {
 			"repeat" => Ok(Repeat),
 			"to" => Ok(To),
 			_ => Err(()),
-		}
-	}
-}
-
-impl Popup {
-	pub fn new(at: usize, lines: Vec<Span<'static>>) -> Self {
-		Self {
-			at,
-			width: lines
-				.iter()
-				.map(|line| line.width() as u16)
-				.max()
-				.unwrap_or(0),
-			primary: false,
-			lines
-		}
-	}
-	
-	const fn area_at(&self, x: u16, y: u16) -> Rect {
-		Rect {
-			x,
-			y,
-			width: self.width + 2,
-			height: self.lines.len() as u16
-		}
-	}
-	
-	#[allow(clippy::wrong_self_convention)]
-	const fn as_primary(mut self) -> Self {
-		self.primary = true;
-		self
-	}
-}
-
-impl Widget for Popup {
-	fn render(self, area: Rect, buf: &mut ratatui::prelude::Buffer) {
-		Clear.render(area, buf);
-		
-		let border_color = if self.primary {
-			Style::new().white()
-		} else {
-			Style::new().gray()
-		};
-		
-		Block::new()
-			.on_dark_gray()
-			.borders(Borders::LEFT | Borders::RIGHT)
-			.border_style(border_color)
-			.render(area, buf);
-		
-		for (line, area) in self.lines.iter().zip(area.rows()) {
-			line.render(
-				area.centered_horizontally(Constraint::Length(line.width() as u16)),
-				buf
-			);
 		}
 	}
 }

@@ -1,5 +1,5 @@
 use std::{cmp::min, convert::identity, iter};
-use crate::{app::WindowSize, buffer::Buffer, cursor::Cursor};
+use crate::{window_size::WindowSize, buffer::Buffer, cursor::Cursor};
 
 #[derive(Debug)]
 pub enum EditAction {

@@ -6,15 +6,20 @@
 #![feature(hash_set_entry)]
 #![feature(trim_prefix_suffix)]
 
+use arguments::Arguments;
+use clap::Parser;
 use app::App;
 use crossterm::{QueueableCommand, event::{DisableMouseCapture, EnableMouseCapture}};
 
 mod app;
 mod buffer;
+mod popup;
 mod config;
 mod cursor;
 mod action;
 mod edit_action;
+mod arguments;
+mod window_size;
 
 mod cardinality;
 mod empty_span;
@@ -28,14 +33,13 @@ const LINES_OF_PADDING: usize = 5;
 const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 
 // TODO:
-// - help (use clap?)
-// - clean up files
 // - update showcase
 // - write docs
 //   - simonomi.dev/hexapoda?
 //   - config
 //     - schema!!
 //   - uhhhhh?
+// - fix scroll clamping
 // - inspector translations for varint
 // - search
 //   - ascii and bytes (`/` and `A-/`?)
@@ -65,7 +69,13 @@ const BYTES_OF_PADDING: usize = LINES_OF_PADDING * BYTES_PER_LINE;
 //   - how to fit??! `-128` longer than `80`
 
 fn main() {
-	let mut app = App::new();
+	let arguments = Arguments::parse();
+	
+	let mut app = App::new(
+		arguments.config,
+		&arguments.files
+	);
+	
 	let mut terminal = ratatui::init();
 	crossterm::terminal::enable_raw_mode().unwrap();
 	terminal.backend_mut().queue(EnableMouseCapture).unwrap();

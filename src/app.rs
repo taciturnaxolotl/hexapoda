@@ -1,11 +1,10 @@
-use std::{env, io, path::PathBuf, process::exit, time::Duration};
+use std::{io, path::PathBuf, process::exit, time::Duration};
 use crossterm::{ExecutableCommand, event::{self, DisableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind}, terminal::window_size};
 use ratatui::{DefaultTerminal, style::Stylize, text::Span};
-use crate::{BYTES_PER_LINE, action::AppAction, buffer::Buffer, config::{Config, ConfigInitError}, cursor::Cursor};
+use crate::{BYTES_PER_LINE, action::AppAction, buffer::Buffer, config::{Config, ConfigInitError}, cursor::Cursor, window_size::WindowSize};
 
 mod widget;
-
-const MACOS_STDIN_BROKEN_MESSAGE: &str = "reading from stdin on macOS does not work due to a limitation in crossterm. see https://github.com/crossterm-rs/crossterm/issues/396";
+mod actions;
 
 pub struct App {
 	pub config: Config,
@@ -23,16 +22,13 @@ pub struct App {
 	pub logs: Vec<String>,
 }
 
-#[derive(Clone, Copy)]
-pub struct WindowSize {
-	pub rows: usize,
-	pub covered_rows: usize,
-}
-
 impl App {
-	pub fn new() -> Self {
+	pub fn new(
+		config_path: Option<PathBuf>,
+		files: &[PathBuf],
+	) -> Self {
 		let config = {
-			let config = Config::init();
+			let config = Config::init(config_path);
 			
 			match &config {
 				Err(ConfigInitError::IO(io_error)) if io_error.kind() != io::ErrorKind::NotFound => {
@@ -56,10 +52,9 @@ impl App {
 		
 		let mut error_alert: Option<Span> = None;
 		
-		let mut buffers: Vec<Buffer> = env::args()
-			.skip(1)
-			.map(Into::into)
-			.filter_map(|path: PathBuf| {
+		let mut buffers: Vec<Buffer> = files
+			.iter()
+			.filter_map(|path| {
 				Buffer::from_file_at(path.clone())
 					.inspect_err(|error| {
 						error_alert = Some(
@@ -70,9 +65,9 @@ impl App {
 			})
 			.collect();
 		
-		if env::args().len() <= 1 {
+		if files.is_empty() {
 			#[cfg(target_os = "macos")] {
-				eprintln!("{MACOS_STDIN_BROKEN_MESSAGE}");
+				eprintln!("please provide at least one file as input. use --help for options");
 				exit(1);
 			}
 			
@@ -137,7 +132,7 @@ impl App {
 					if error.kind() == ErrorKind::Other {
 						let error_message = error.to_string();
 						if error_message == "Failed to initialize input reader" {
-							eprintln!("{MACOS_STDIN_BROKEN_MESSAGE}");
+							eprintln!("reading from stdin on macOS does not work due to a limitation in crossterm. see https://github.com/crossterm-rs/crossterm/issues/396");
 							exit(1);
 						}
 					}
@@ -243,60 +238,5 @@ impl App {
 			},
 			_ => (),
 		}
-	}
-	
-	fn quit_if_saved(&mut self) {
-		if self.buffers.iter().all(Buffer::all_changes_saved) {
-			self.quit();
-		} else {
-			self.buffers[self.current_buffer_index].alert_message = Span::from(
-				"there are unsaved changes, use Q to override"
-			).red();
-		}
-	}
-	
-	const fn quit(&mut self) {
-		self.should_quit = true;
-	}
-	
-	const fn previous_buffer(&mut self) {
-		if self.current_buffer_index == 0 {
-			self.current_buffer_index = self.buffers.len() - 1;
-		} else {
-			self.current_buffer_index -= 1;
-		}
-	}
-	
-	const fn next_buffer(&mut self) {
-		if self.current_buffer_index == self.buffers.len() - 1 {
-			self.current_buffer_index = 0;
-		} else {
-			self.current_buffer_index += 1;
-		}
-	}
-	
-	fn yank(&mut self) {
-		let current_buffer = &self.buffers[self.current_buffer_index];
-		
-		self.primary_cursor_register = current_buffer
-			.contents[current_buffer.primary_cursor.range()]
-			.to_vec();
-		
-		self.other_cursor_registers = current_buffer.cursors
-			.iter()
-			.map(|cursor| {
-				current_buffer.contents[cursor.range()].to_vec()
-			})
-			.collect();
-	}
-}
-
-impl WindowSize {
-	pub const fn visible_byte_count(&self) -> usize {
-		self.hex_rows() * BYTES_PER_LINE
-	}
-	
-	pub const fn hex_rows(&self) -> usize {
-		self.rows - self.covered_rows
 	}
 }
