@@ -425,7 +425,9 @@ impl Buffer {
 			});
 		
 		self.primary_cursor = new_cursors.next().unwrap();
-		self.cursors = new_cursors.collect();
+		self.cursors = new_cursors
+			.sorted_by_key(|cursor| cursor.head)
+			.collect();
 		
 		self.clamp_screen_to_primary_cursor(window_size);
 	}

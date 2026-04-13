@@ -150,6 +150,8 @@ impl Buffer {
 		assert!(self.scroll_position <= self.primary_cursor.head);
 		assert!(self.primary_cursor.head < self.scroll_position + window_size.visible_byte_count());
 		
+		debug_assert!(self.cursors.is_sorted_by_key(|cursor| cursor.head));
+		
 		app_action
 	}
 	
@@ -309,10 +311,20 @@ impl Buffer {
 	pub fn combine_cursors_if_overlapping(&mut self) {
 		let mut index = 0;
 		
+		// TODO: this can miss some in the WEIRD case that
+		// [    *]
+		//           [    *]
+		//   [                 *]
+		// where * is the head.
+		// the first one wont merge with the 2nd, but the 2nd will
+		// merge with the 3rd, which would then overlap with the 1st,
+		// but won't be checked
+		
 		while !self.cursors.is_empty() && index < self.cursors.len() {
 			while index < self.cursors.len() - 1 &&
 				self.cursors[index].range().is_overlapping(
-					&self.cursors[index + 1].range())
+					&self.cursors[index + 1].range()
+				)
 			{
 				let next_cursor = self.cursors[index + 1];
 				self.cursors[index].combine_with(next_cursor);
@@ -324,9 +336,9 @@ impl Buffer {
 			{
 				self.primary_cursor.combine_with(self.cursors[index]);
 				self.cursors.remove(index);
+			} else {
+				index += 1;
 			}
-			
-			index += 1;
 		}
 	}
 }
