@@ -134,6 +134,8 @@ pub enum BufferAction {
 	Repeat,
 	To,
 	
+	Search,
+	
 	ScrollDown,
 	ScrollUp,
 	
@@ -184,6 +186,11 @@ pub enum BufferAction {
 	ExtendToNull,
 	ExtendToFF,
 	
+	SearchNext,
+	SearchPrevious,
+	
+	HexSearch,
+	
 	InspectSelection,
 	InspectSelectionColor,
 }
@@ -203,6 +210,8 @@ impl BufferAction {
 			Space => false,
 			Repeat => true,
 			To => false,
+			
+			Search => false,
 			
 			ScrollDown => true,
 			ScrollUp => true,
@@ -254,6 +263,11 @@ impl BufferAction {
 			ExtendToNull => true,
 			ExtendToFF => true,
 			
+			SearchNext => true,
+			SearchPrevious => true,
+			
+			HexSearch => false,
+			
 			InspectSelection => true,
 			InspectSelectionColor => true,
 		}
@@ -274,6 +288,8 @@ impl From<BufferAction> for &str {
 			Space => "space",
 			Repeat => "repeat",
 			To => "to",
+			
+			Search => "search",
 			
 			ScrollDown => "scroll_down",
 			ScrollUp => "scroll_up",
@@ -325,6 +341,11 @@ impl From<BufferAction> for &str {
 			ExtendToNull => "extend_to_null",
 			ExtendToFF => "extend_to_ff",
 			
+			SearchNext => "search_next",
+			SearchPrevious => "search_previous",
+			
+			HexSearch => "hex_search",
+			
 			InspectSelection => "inspect_selection",
 			InspectSelectionColor => "inspect_selection_color",
 		}
@@ -353,6 +374,8 @@ impl TryFrom<&str> for BufferAction {
 			"space" => Ok(Space),
 			"repeat" => Ok(Repeat),
 			"to" => Ok(To),
+			
+			"search" => Ok(Search),
 			
 			"scroll_down" => Ok(ScrollDown),
 			"scroll_up" => Ok(ScrollUp),
@@ -403,6 +426,11 @@ impl TryFrom<&str> for BufferAction {
 			"extend_to_mark" => Ok(ExtendToMark),
 			"extend_to_null" => Ok(ExtendToNull),
 			"extend_to_ff" => Ok(ExtendToFF),
+			
+			"search_next" => Ok(SearchNext),
+			"search_previous" => Ok(SearchPrevious),
+			
+			"hex_search" => Ok(HexSearch),
 			
 			"inspect_selection" => Ok(InspectSelection),
 			"inspect_selection_color" => Ok(InspectSelectionColor),

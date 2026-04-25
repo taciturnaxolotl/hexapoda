@@ -29,6 +29,8 @@ pub struct Buffer {
 	
 	pub inspection_status: Option<InspectionStatus>,
 	
+	pub search_query: Option<String>,
+	
 	pub edit_history: Vec<EditAction>,
 	// the index *after* the latest edit action
 	pub time_traveling: Option<usize>,
@@ -49,7 +51,7 @@ pub enum Mode {
 #[derive(Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum PartialAction {
-	Goto, View, Replace, Space, Repeat, To
+	Goto, View, Replace, Space, Repeat, To, Search, HexSearch
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -70,6 +72,8 @@ impl TryFrom<&str> for PartialAction {
 			"space" => Ok(Space),
 			"repeat" => Ok(Repeat),
 			"to" => Ok(To),
+			"search" => Ok(Search),
+			"hex_search" => Ok(HexSearch),
 			_ => Err(()),
 		}
 	}
@@ -100,6 +104,8 @@ impl Buffer {
 			mode: Mode::Normal,
 			partial_action: None,
 			partial_replace: None,
+
+			search_query: None,
 			
 			alert_message: "".into(),
 			popups: Vec::new(),
@@ -138,6 +144,14 @@ impl Buffer {
 					other_cursor_registers,
 					window_size
 				);
+				None
+			},
+			Some(PartialAction::Search) => {
+				self.handle_search(event, window_size);
+				None
+			},
+			Some(PartialAction::HexSearch) => {
+				self.handle_hex_search(event, window_size);
 				None
 			},
 			_ => self.handle_other_modes(event, config, window_size),
@@ -180,6 +194,97 @@ impl Buffer {
 		} else {
 			self.partial_action = None;
 			self.partial_replace = None;
+		}
+	}
+	
+	fn handle_search(&mut self, event: KeyEvent, window_size: WindowSize) {
+		use crossterm::event::KeyCode;
+		
+		match event.code {
+			KeyCode::Enter => {
+				if let Some(query) = self.search_query.take() {
+					if !query.is_empty() {
+						self.execute_search(&query, window_size);
+					}
+				}
+				self.partial_action = None;
+			},
+			KeyCode::Esc => {
+				self.search_query = None;
+				self.partial_action = None;
+			},
+			KeyCode::Backspace => {
+				if let Some(query) = &mut self.search_query {
+					query.pop();
+					if query.is_empty() {
+						self.search_query = None;
+						self.partial_action = None;
+					}
+				} else {
+					self.partial_action = None;
+				}
+			},
+			KeyCode::Char(character) => {
+				self.search_query
+					.get_or_insert_with(String::new)
+					.push(character);
+			},
+			_ => {},
+		}
+	}
+	
+	fn handle_hex_search(&mut self, event: KeyEvent, window_size: WindowSize) {
+		use crossterm::event::KeyCode;
+		
+		match event.code {
+			KeyCode::Enter => {
+				if let Some(query) = self.search_query.take() {
+					let hex_query: Vec<u8> = query
+						.as_bytes()
+						.chunks(2)
+						.filter_map(|chunk| {
+							if chunk.len() == 2 {
+								let hi = nybble_from_hex(chunk[0] as char)?;
+								let lo = nybble_from_hex(chunk[1] as char)?;
+								Some(hi << 4 | lo)
+							} else {
+								None
+							}
+						})
+						.collect();
+					
+					if !hex_query.is_empty() {
+						self.execute_search_bytes(&hex_query, window_size);
+					}
+				}
+				self.partial_action = None;
+			},
+			KeyCode::Esc => {
+				self.search_query = None;
+				self.partial_action = None;
+			},
+			KeyCode::Backspace => {
+				if let Some(query) = &mut self.search_query {
+					query.pop();
+					if query.is_empty() {
+						self.search_query = None;
+						self.partial_action = None;
+					}
+				} else {
+					self.partial_action = None;
+				}
+			},
+			KeyCode::Char(character) => {
+				if character.is_ascii_hexdigit() {
+					self.search_query
+						.get_or_insert_with(String::new)
+						.push(character);
+				} else {
+					self.partial_action = None;
+					self.search_query = None;
+				}
+			},
+			_ => {},
 		}
 	}
 	

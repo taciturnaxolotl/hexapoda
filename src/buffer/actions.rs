@@ -15,6 +15,8 @@ impl Buffer {
 			BufferAction::Space => self.space(),
 			BufferAction::Repeat => self.repeat(),
 			BufferAction::To => self.to(),
+			BufferAction::Search => self.search(),
+			BufferAction::HexSearch => self.hex_search(),
 			
 			BufferAction::ScrollDown => self.scroll_down(window_size),
 			BufferAction::ScrollUp => self.scroll_up(window_size),
@@ -66,6 +68,9 @@ impl Buffer {
 			BufferAction::ExtendToNull => self.extend_to_null(window_size),
 			BufferAction::ExtendToFF => self.extend_to_FF(window_size),
 			
+			BufferAction::SearchNext => self.search_next(window_size),
+			BufferAction::SearchPrevious => self.search_previous(window_size),
+			
 			BufferAction::InspectSelection => self.inspect_selection(),
 			BufferAction::InspectSelectionColor => self.inspect_selection_color(),
 		}
@@ -103,6 +108,16 @@ impl Buffer {
 	
 	const fn to(&mut self) {
 		self.partial_action = Some(PartialAction::To);
+	}
+	
+	fn search(&mut self) {
+		self.partial_action = Some(PartialAction::Search);
+		self.search_query = Some(String::new());
+	}
+	
+	fn hex_search(&mut self) {
+		self.partial_action = Some(PartialAction::HexSearch);
+		self.search_query = Some(String::new());
 	}
 	
 	pub fn scroll_down(&mut self, window_size: WindowSize) {
@@ -696,6 +711,103 @@ impl Buffer {
 		if self.popups.is_empty() {
 			self.inspection_status = None;
 		}
+	}
+	
+	pub fn execute_search(&mut self, query: &str, window_size: WindowSize) {
+		let pattern = query.as_bytes();
+		if pattern.is_empty() || pattern.len() > self.contents.len() {
+			self.alert_message = Span::from("pattern not found").red();
+			return;
+		}
+		
+		let matches: Vec<usize> = self.contents
+			.windows(pattern.len())
+			.enumerate()
+			.filter(|(_, window)| *window == pattern)
+			.map(|(index, _)| index)
+			.collect();
+		
+		if matches.is_empty() {
+			self.alert_message = Span::from("pattern not found").red();
+			return;
+		}
+		
+		self.primary_cursor = Cursor {
+			head: matches[0] + pattern.len() - 1,
+			tail: matches[0]
+		};
+		self.cursors = matches[1..]
+			.iter()
+			.map(|&offset| Cursor { head: offset + pattern.len() - 1, tail: offset })
+			.collect();
+		
+		self.mode = Mode::Select;
+		self.clamp_screen_to_primary_cursor(window_size);
+	}
+	
+	pub fn execute_search_bytes(&mut self, pattern: &[u8], window_size: WindowSize) {
+		if pattern.is_empty() || pattern.len() > self.contents.len() {
+			self.alert_message = Span::from("pattern not found").red();
+			return;
+		}
+		
+		let matches: Vec<usize> = self.contents
+			.windows(pattern.len())
+			.enumerate()
+			.filter(|(_, window)| *window == pattern)
+			.map(|(index, _)| index)
+			.collect();
+		
+		if matches.is_empty() {
+			self.alert_message = Span::from("pattern not found").red();
+			return;
+		}
+		
+		self.primary_cursor = Cursor {
+			head: matches[0] + pattern.len() - 1,
+			tail: matches[0]
+		};
+		self.cursors = matches[1..]
+			.iter()
+			.map(|&offset| Cursor { head: offset + pattern.len() - 1, tail: offset })
+			.collect();
+		
+		self.mode = Mode::Select;
+		self.clamp_screen_to_primary_cursor(window_size);
+	}
+	
+	fn search_next(&mut self, window_size: WindowSize) {
+		let Some(query) = &self.search_query else {
+			return;
+		};
+		if query.is_empty() {
+			return;
+		}
+		let query = query.clone();
+		self.execute_search(&query, window_size);
+		
+		if self.cursors.is_empty() {
+			return;
+		}
+		
+		self.rotate_selections_forward(window_size);
+	}
+	
+	fn search_previous(&mut self, window_size: WindowSize) {
+		let Some(query) = &self.search_query else {
+			return;
+		};
+		if query.is_empty() {
+			return;
+		}
+		let query = query.clone();
+		self.execute_search(&query, window_size);
+		
+		if self.cursors.is_empty() {
+			return;
+		}
+		
+		self.rotate_selections_backward(window_size);
 	}
 }
 

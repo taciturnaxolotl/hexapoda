@@ -25,6 +25,11 @@ impl Default for Config {
 					(keypress(" "), Space.into()),
 					(keypress("*"), Repeat.into()),
 					(keypress("t"), To.into()),
+					(keypress("/"), Search.into()),
+					(keypress("A-/"), HexSearch.into()),
+					
+					(keypress("n"), SearchNext.into()),
+					(keypress("N"), SearchPrevious.into()),
 					
 					(keypress("i"), MoveByteUp.into()),
 					(keypress("k"), MoveByteDown.into()),
@@ -89,6 +94,9 @@ impl Default for Config {
 					(keypress("m"), ToggleMark.into()),
 					
 					(keypress("y"), Yank.into()),
+					
+					(keypress("n"), SearchNext.into()),
+					(keypress("N"), SearchPrevious.into()),
 					
 					(keypress("C- "), InspectSelection.into()),
 					(keypress("A- "), InspectSelectionColor.into()),
@@ -157,6 +165,11 @@ impl Default for Config {
 					(keypress(" "), Space.into()),
 					(keypress("*"), Repeat.into()),
 					(keypress("t"), To.into()),
+					(keypress("/"), Search.into()),
+					(keypress("A-/"), HexSearch.into()),
+					
+					(keypress("n"), SearchNext.into()),
+					(keypress("N"), SearchPrevious.into()),
 					
 					(keypress("i"), ExtendByteUp.into()),
 					(keypress("k"), ExtendByteDown.into()),
@@ -216,6 +229,9 @@ impl Default for Config {
 					(keypress("m"), ToggleMark.into()),
 					
 					(keypress("y"), Yank.into()),
+					
+					(keypress("n"), SearchNext.into()),
+					(keypress("N"), SearchPrevious.into()),
 					
 					(keypress("C- "), InspectSelection.into()),
 					(keypress("A- "), InspectSelectionColor.into()),

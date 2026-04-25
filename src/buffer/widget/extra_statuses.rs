@@ -3,9 +3,13 @@ use ratatui::text::Line;
 
 impl Buffer {
 	pub fn render_extra_statuses(&self) -> Line<'_> {
-		let partial_action = self.partial_action
-			.as_ref()
-			.map_or("", |partial_action| partial_action.label());
+		let partial_action = if let Some(query) = &self.search_query {
+			format!("/{}", query)
+		} else {
+			self.partial_action
+				.as_ref()
+				.map_or(String::new(), |partial_action| partial_action.label().to_owned())
+		};
 		
 		if self.contents.is_empty() {
 			format!("{partial_action} ").into()
@@ -29,6 +33,8 @@ impl PartialAction {
 			Space => "␠",
 			Repeat => "×",
 			To => "t",
+			Search => "/",
+			HexSearch => "A-/",
 		}
 	}
 }
